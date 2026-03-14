@@ -11,8 +11,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let space_state = state.current_space_state();
 
     if space_state.loading_issues {
-        let loading =
-            Paragraph::new("Loading issues...").style(Style::default().fg(Color::Gray));
+        let loading = Paragraph::new("Loading issues...").style(Style::default().fg(Color::Gray));
         frame.render_widget(loading, area);
         return;
     }

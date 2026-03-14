@@ -16,8 +16,7 @@ pub struct Config {
 }
 
 fn parse_and_validate(content: &str) -> Result<Config> {
-    let config: Config =
-        toml::from_str(content).with_context(|| "Failed to parse config.toml")?;
+    let config: Config = toml::from_str(content).with_context(|| "Failed to parse config.toml")?;
     if config.spaces.is_empty() {
         bail!("No spaces defined in config.toml");
     }

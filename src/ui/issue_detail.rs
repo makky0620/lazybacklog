@@ -81,8 +81,7 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
             width: popup_area.width.saturating_sub(2),
             height: 1,
         };
-        let help =
-            Paragraph::new("[Esc] 閉じる").style(Style::default().fg(Color::DarkGray));
+        let help = Paragraph::new("[Esc] 閉じる").style(Style::default().fg(Color::DarkGray));
         frame.render_widget(help, help_area);
     }
 }
