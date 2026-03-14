@@ -429,6 +429,17 @@ mod tests {
     }
 
     #[test]
+    fn test_needs_projects_fetch_false_when_loaded() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::ProjectsLoaded {
+            space: "space1".to_string(),
+            projects: vec![],
+        });
+        assert!(!state.needs_projects_fetch());
+    }
+
+    #[test]
     fn test_switch_space_resets_project_state() {
         let config = make_config("space1", &["space1", "space2"]);
         let mut state = AppState::new(config);

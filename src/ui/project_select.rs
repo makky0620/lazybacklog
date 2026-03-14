@@ -40,13 +40,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let projects = match &space_state.projects {
         Some(p) if !p.is_empty() => p,
-        Some(_) => {
-            let msg = Paragraph::new("No projects found.")
-                .style(Style::default().fg(Color::Gray));
-            frame.render_widget(msg, area);
-            return;
-        }
-        None => {
+        _ => {
             let msg = Paragraph::new("No projects found.")
                 .style(Style::default().fg(Color::Gray));
             frame.render_widget(msg, area);
