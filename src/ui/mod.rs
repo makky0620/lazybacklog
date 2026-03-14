@@ -10,9 +10,20 @@ use crate::app::{AppState, Screen};
 pub mod filter;
 pub mod issue_detail;
 pub mod issue_list;
+pub mod project_select;
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
+
+    if state.screen == Screen::ProjectSelect {
+        // Full-screen takeover: render project select layout first,
+        // then overlay status message on the bottom line.
+        // Order matters: project_select::render paints the help bar,
+        // render_status_message overlays it when an error is present.
+        project_select::render(frame, area, state);
+        render_status_message(frame, area, state);
+        return;
+    }
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -39,19 +50,10 @@ pub fn render(frame: &mut Frame, state: &AppState) {
             filter::render(frame, area, state);
         }
         Screen::IssueList => {}
+        Screen::ProjectSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
     }
 
-    // Status message overlays the help bar when present
-    if let Some(msg) = &state.status_message {
-        let status_area = Rect {
-            y: area.height.saturating_sub(1),
-            height: 1,
-            ..area
-        };
-        let paragraph =
-            Paragraph::new(msg.as_str()).style(Style::default().fg(Color::Yellow));
-        frame.render_widget(paragraph, status_area);
-    }
+    render_status_message(frame, area, state);
 }
 
 fn render_title(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -84,4 +86,17 @@ fn render_help_bar(frame: &mut Frame, area: Rect) {
     let paragraph =
         Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
+}
+
+fn render_status_message(frame: &mut Frame, area: Rect, state: &AppState) {
+    if let Some(msg) = &state.status_message {
+        let status_area = Rect {
+            y: area.height.saturating_sub(1),
+            height: 1,
+            ..area
+        };
+        let paragraph =
+            Paragraph::new(msg.as_str()).style(Style::default().fg(Color::Yellow));
+        frame.render_widget(paragraph, status_area);
+    }
 }
