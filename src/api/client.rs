@@ -95,6 +95,9 @@ impl BacklogClient {
             .send()
             .await
             .context("Failed to connect to Backlog API")?;
+        if resp.status() == 401 {
+            anyhow::bail!("401 Unauthorized - check your API key");
+        }
         resp.error_for_status_ref()
             .context("Backlog API returned an error")?;
         resp.json::<Vec<User>>()
