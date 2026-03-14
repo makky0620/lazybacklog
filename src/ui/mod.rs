@@ -1,0 +1,87 @@
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    widgets::Paragraph,
+    Frame,
+};
+
+use crate::app::{AppState, Screen};
+
+pub mod filter;
+pub mod issue_detail;
+pub mod issue_list;
+
+pub fn render(frame: &mut Frame, state: &AppState) {
+    let area = frame.area();
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // title bar
+            Constraint::Length(1), // filter bar
+            Constraint::Min(0),    // content
+            Constraint::Length(1), // help bar
+        ])
+        .split(area);
+
+    render_title(frame, chunks[0], state);
+    render_filter_bar(frame, chunks[1], state);
+    issue_list::render(frame, chunks[2], state);
+    render_help_bar(frame, chunks[3]);
+
+    match state.screen {
+        Screen::IssueDetail => {
+            if let Some(issue) = &state.detail_issue {
+                issue_detail::render(frame, area, issue);
+            }
+        }
+        Screen::Filter => {
+            filter::render(frame, area, state);
+        }
+        Screen::IssueList => {}
+    }
+
+    // Status message overlays the help bar when present
+    if let Some(msg) = &state.status_message {
+        let status_area = Rect {
+            y: area.height.saturating_sub(1),
+            height: 1,
+            ..area
+        };
+        let paragraph =
+            Paragraph::new(msg.as_str()).style(Style::default().fg(Color::Yellow));
+        frame.render_widget(paragraph, status_area);
+    }
+}
+
+fn render_title(frame: &mut Frame, area: Rect, state: &AppState) {
+    let title = format!(" lazybacklog ──── [{}] ", state.current_space_name());
+    let paragraph = Paragraph::new(title)
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    frame.render_widget(paragraph, area);
+}
+
+fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
+    let space_state = state.current_space_state();
+    let assignee_name = if let Some(aid) = state.filter_assignee_id {
+        space_state
+            .users
+            .as_ref()
+            .and_then(|users| users.iter().find(|u| u.id == aid))
+            .map(|u| u.name.clone())
+            .unwrap_or_else(|| format!("ID:{}", aid))
+    } else {
+        "ALL".to_string()
+    };
+
+    let text = format!(" Assignee: {}", assignee_name);
+    let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Gray));
+    frame.render_widget(paragraph, area);
+}
+
+fn render_help_bar(frame: &mut Frame, area: Rect) {
+    let text = " [j/k] 移動  [Enter] 詳細  [f] フィルター  [r] 更新  [[] []] スペース切替  [q] 終了";
+    let paragraph =
+        Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(paragraph, area);
+}
