@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::api::models::{Issue, IssueStatus, User};
+use crate::api::models::{Issue, User};
 use crate::config::Config;
 use crate::event::AppEvent;
 
@@ -155,6 +155,7 @@ impl AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::models::IssueStatus;
 
     fn make_config(default: &str, names: &[&str]) -> Config {
         Config {
