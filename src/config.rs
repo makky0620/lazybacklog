@@ -12,8 +12,22 @@ pub struct SpaceConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub default_space: String,
-    #[serde(default)]
     pub spaces: Vec<SpaceConfig>,
+}
+
+fn parse_and_validate(content: &str) -> Result<Config> {
+    let config: Config =
+        toml::from_str(content).with_context(|| "Failed to parse config.toml")?;
+    if config.spaces.is_empty() {
+        bail!("No spaces defined in config.toml");
+    }
+    if !config.spaces.iter().any(|s| s.name == config.default_space) {
+        bail!(
+            "default_space '{}' not found in spaces",
+            config.default_space
+        );
+    }
+    Ok(config)
 }
 
 pub fn config_path() -> PathBuf {
@@ -31,26 +45,17 @@ pub fn config_path() -> PathBuf {
 
 pub fn load() -> Result<Config> {
     let path = config_path();
-    if !path.exists() {
-        bail!(
-            "Config file not found: {}\nCreate it with your Backlog spaces and API keys.",
-            path.display()
-        );
-    }
-    let content = std::fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read config: {}", path.display()))?;
-    let config: Config =
-        toml::from_str(&content).with_context(|| "Failed to parse config.toml")?;
-    if config.spaces.is_empty() {
-        bail!("No spaces defined in config.toml");
-    }
-    if !config.spaces.iter().any(|s| s.name == config.default_space) {
-        bail!(
-            "default_space '{}' not found in spaces",
-            config.default_space
-        );
-    }
-    Ok(config)
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            anyhow::anyhow!(
+                "Config file not found: {}\nCreate it with your Backlog spaces and API keys.",
+                path.display()
+            )
+        } else {
+            anyhow::Error::from(e).context(format!("Failed to read config: {}", path.display()))
+        }
+    })?;
+    parse_and_validate(&content)
 }
 
 /// Returns a warning string if permissions are wrong, None if OK.
@@ -86,18 +91,7 @@ mod tests {
     fn load_from_path(path: &std::path::Path) -> Result<Config> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read: {}", path.display()))?;
-        let config: Config =
-            toml::from_str(&content).with_context(|| "Failed to parse config.toml")?;
-        if config.spaces.is_empty() {
-            bail!("No spaces defined in config.toml");
-        }
-        if !config.spaces.iter().any(|s| s.name == config.default_space) {
-            bail!(
-                "default_space '{}' not found in spaces",
-                config.default_space
-            );
-        }
-        Ok(config)
+        parse_and_validate(&content)
     }
 
     #[test]
@@ -161,7 +155,9 @@ api_key = "abc123"
     fn test_empty_spaces() {
         let file = write_config(r#"default_space = "x""#);
         let err = load_from_path(file.path()).unwrap_err();
-        assert!(err.to_string().contains("No spaces"));
+        let err_str = format!("{:?}", err);
+        // When spaces field is missing, serde reports a parse error containing "missing field"
+        assert!(err_str.contains("missing field") || err_str.contains("No spaces"));
     }
 
     #[cfg(unix)]
