@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use crate::api::models::{Issue, User};
+use crate::api::models::{Issue, Project, User};
 use crate::config::Config;
 use crate::event::AppEvent;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
+    ProjectSelect,
     IssueList,
     IssueDetail,
     Filter,
@@ -17,6 +18,9 @@ pub struct SpaceState {
     pub users: Option<Vec<User>>,
     pub users_error: bool,
     pub loading_issues: bool,
+    pub projects: Option<Vec<Project>>,
+    pub loading_projects: bool,
+    pub selected_project: Option<Project>,
 }
 
 pub struct AppState {
@@ -27,6 +31,7 @@ pub struct AppState {
     pub detail_issue: Option<Issue>,
     pub filter_assignee_id: Option<i64>,
     pub filter_cursor_idx: usize,
+    pub project_cursor_idx: usize,
     pub screen: Screen,
     pub status_message: Option<String>,
     pub should_quit: bool,
@@ -51,7 +56,8 @@ impl AppState {
             detail_issue: None,
             filter_assignee_id: None,
             filter_cursor_idx: 0,
-            screen: Screen::IssueList,
+            project_cursor_idx: 0,
+            screen: Screen::ProjectSelect,
             status_message: None,
             should_quit: false,
         }
@@ -73,6 +79,15 @@ impl AppState {
     pub fn needs_issue_fetch(&self) -> bool {
         let state = self.current_space_state();
         state.issues.is_none() && !state.loading_issues
+    }
+
+    pub fn needs_projects_fetch(&self) -> bool {
+        let state = self.current_space_state();
+        state.projects.is_none() && !state.loading_projects
+    }
+
+    pub fn selected_project(&self) -> Option<&Project> {
+        self.current_space_state().selected_project.as_ref()
     }
 
     pub fn selected_issue(&self) -> Option<&Issue> {
@@ -104,7 +119,9 @@ impl AppState {
         self.current_space_idx = (self.current_space_idx + 1) % self.config.spaces.len();
         self.selected_issue_idx = 0;
         self.detail_issue = None;
-        self.screen = Screen::IssueList;
+        self.project_cursor_idx = 0;
+        self.filter_assignee_id = None;
+        self.screen = Screen::ProjectSelect;
     }
 
     pub fn switch_space_prev(&mut self) {
@@ -115,7 +132,9 @@ impl AppState {
         }
         self.selected_issue_idx = 0;
         self.detail_issue = None;
-        self.screen = Screen::IssueList;
+        self.project_cursor_idx = 0;
+        self.filter_assignee_id = None;
+        self.screen = Screen::ProjectSelect;
     }
 
     pub fn handle_event(&mut self, event: AppEvent) {
@@ -138,10 +157,17 @@ impl AppState {
                     state.users_error = false;
                 }
             }
+            AppEvent::ProjectsLoaded { space, projects } => {
+                if let Some(state) = self.spaces.get_mut(&space) {
+                    state.projects = Some(projects);
+                    state.loading_projects = false;
+                }
+            }
             AppEvent::ApiError { space, message } => {
                 self.status_message = Some(format!("⚠ [{}] {}", space, message));
                 if let Some(state) = self.spaces.get_mut(&space) {
                     state.loading_issues = false;
+                    state.loading_projects = false;
                     if state.users.is_none() {
                         state.users_error = true;
                     }
@@ -194,7 +220,7 @@ mod tests {
         let state = AppState::new(config);
         assert_eq!(state.current_space_name(), "space1");
         assert_eq!(state.current_space_idx, 0);
-        assert_eq!(state.screen, Screen::IssueList);
+        assert_eq!(state.screen, Screen::ProjectSelect);
         assert!(!state.should_quit);
     }
 
@@ -237,8 +263,14 @@ mod tests {
         state.handle_event(AppEvent::SpaceUsersLoaded {
             space: "space1".to_string(),
             users: vec![
-                User { id: 1, name: "Alice".to_string() },
-                User { id: 2, name: "Bob".to_string() },
+                User {
+                    id: 1,
+                    name: "Alice".to_string(),
+                },
+                User {
+                    id: 2,
+                    name: "Bob".to_string(),
+                },
             ],
         });
         let users = state.current_space_state().users.as_ref().unwrap();
@@ -276,7 +308,11 @@ mod tests {
         let mut state = AppState::new(config);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
-            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("PROJ-3")],
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("PROJ-2"),
+                make_issue("PROJ-3"),
+            ],
         });
         state.navigate_down();
         assert_eq!(state.selected_issue_idx, 1);
@@ -347,5 +383,60 @@ mod tests {
             issues: vec![],
         });
         assert!(!state.needs_issue_fetch());
+    }
+
+    #[test]
+    fn test_projects_loaded_event() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::ProjectsLoaded {
+            space: "space1".to_string(),
+            projects: vec![
+                crate::api::models::Project { id: 1, project_key: "PROJ".to_string(), name: "My Project".to_string() },
+            ],
+        });
+        let projects = state.current_space_state().projects.as_ref().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].project_key, "PROJ");
+        assert!(!state.current_space_state().loading_projects);
+    }
+
+    #[test]
+    fn test_api_error_resets_loading_projects() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.current_space_state_mut().loading_projects = true;
+        state.handle_event(AppEvent::ApiError {
+            space: "space1".to_string(),
+            message: "timeout".to_string(),
+        });
+        assert!(!state.current_space_state().loading_projects);
+    }
+
+    #[test]
+    fn test_needs_projects_fetch_true_when_no_projects() {
+        let config = make_config("space1", &["space1"]);
+        let state = AppState::new(config);
+        assert!(state.needs_projects_fetch());
+    }
+
+    #[test]
+    fn test_needs_projects_fetch_false_when_loading() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.current_space_state_mut().loading_projects = true;
+        assert!(!state.needs_projects_fetch());
+    }
+
+    #[test]
+    fn test_switch_space_resets_project_state() {
+        let config = make_config("space1", &["space1", "space2"]);
+        let mut state = AppState::new(config);
+        state.filter_assignee_id = Some(42);
+        state.project_cursor_idx = 3;
+        state.switch_space_next();
+        assert_eq!(state.screen, Screen::ProjectSelect);
+        assert_eq!(state.project_cursor_idx, 0);
+        assert!(state.filter_assignee_id.is_none());
     }
 }
