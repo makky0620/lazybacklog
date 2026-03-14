@@ -16,9 +16,7 @@ impl BacklogClient {
     }
 
     pub fn with_base_url(base_url: String, api_key: String) -> Result<Self> {
-        let http = Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()?;
+        let http = Client::builder().timeout(Duration::from_secs(10)).build()?;
         Ok(Self {
             base_url,
             api_key,
@@ -26,11 +24,18 @@ impl BacklogClient {
         })
     }
 
-    pub async fn fetch_issues(&self, assignee_id: Option<i64>) -> Result<Vec<Issue>> {
+    pub async fn fetch_issues(
+        &self,
+        project_id: Option<i64>,
+        assignee_id: Option<i64>,
+    ) -> Result<Vec<Issue>> {
         let mut params: Vec<(&str, String)> = vec![
             ("apiKey", self.api_key.clone()),
             ("count", "100".to_string()),
         ];
+        if let Some(id) = project_id {
+            params.push(("projectId[]", id.to_string()));
+        }
         if let Some(id) = assignee_id {
             params.push(("assigneeId[]", id.to_string()));
         }
@@ -143,7 +148,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let issues = client.fetch_issues(None).await.unwrap();
+        let issues = client.fetch_issues(None, None).await.unwrap();
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].issue_key, "PROJ-1");
         assert_eq!(issues[0].summary, "Test issue");
@@ -166,7 +171,22 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let issues = client.fetch_issues(Some(42)).await.unwrap();
+        let issues = client.fetch_issues(None, Some(42)).await.unwrap();
+        assert_eq!(issues.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_issues_with_project_filter() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues"))
+            .and(query_param("projectId[]", "100"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let issues = client.fetch_issues(Some(100), None).await.unwrap();
         assert_eq!(issues.len(), 0);
     }
 
@@ -180,7 +200,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let err = client.fetch_issues(None).await.unwrap_err();
+        let err = client.fetch_issues(None, None).await.unwrap_err();
         assert!(err.to_string().contains("401 Unauthorized"));
     }
 
