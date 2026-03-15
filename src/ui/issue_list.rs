@@ -66,9 +66,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             display_indices.len()
         )
     } else if issues.len() >= 100 {
-        format!("(表示: {}件 / 上限100件)", issues.len())
+        format!("(showing: {} / limit 100)", issues.len())
     } else {
-        format!("({}件)", issues.len())
+        format!("({})", issues.len())
     };
 
     // Reserve last line for footer

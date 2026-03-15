@@ -27,7 +27,7 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
         .map(|t| t.name.as_str())
         .unwrap_or("-");
     let due_date = issue.due_date.as_deref().unwrap_or("-");
-    let description = issue.description.as_deref().unwrap_or("(説明なし)");
+    let description = issue.description.as_deref().unwrap_or("(no description)");
 
     let mut lines = vec![
         Line::from(vec![Span::styled(
@@ -36,25 +36,25 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
         )]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("担当者: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Assignee: ", Style::default().fg(Color::Yellow)),
             Span::raw(assignee),
             Span::raw("    "),
-            Span::styled("優先度: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Priority: ", Style::default().fg(Color::Yellow)),
             Span::raw(priority),
         ]),
         Line::from(vec![
-            Span::styled("ステータス: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Status: ", Style::default().fg(Color::Yellow)),
             Span::raw(issue.status.name.as_str()),
             Span::raw("    "),
-            Span::styled("種別: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Type: ", Style::default().fg(Color::Yellow)),
             Span::raw(issue_type),
         ]),
         Line::from(vec![
-            Span::styled("期限: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Due: ", Style::default().fg(Color::Yellow)),
             Span::raw(due_date),
         ]),
         Line::from(""),
-        Line::from(Span::styled("詳細:", Style::default().fg(Color::Yellow))),
+        Line::from(Span::styled("Description:", Style::default().fg(Color::Yellow))),
         Line::from(""),
     ];
 
@@ -81,7 +81,7 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
             width: popup_area.width.saturating_sub(2),
             height: 1,
         };
-        let help = Paragraph::new("[Esc] 閉じる").style(Style::default().fg(Color::DarkGray));
+        let help = Paragraph::new("[Esc] Close").style(Style::default().fg(Color::DarkGray));
         frame.render_widget(help, help_area);
     }
 }

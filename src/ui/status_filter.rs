@@ -16,9 +16,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let statuses = match &space_state.statuses {
         None => {
-            let list = List::new(vec![ListItem::new("読み込み中...")]).block(
+            let list = List::new(vec![ListItem::new("Loading...")]).block(
                 Block::default()
-                    .title(" ステータスフィルター ")
+                    .title(" Status Filter ")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan)),
             );
@@ -26,9 +26,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             return;
         }
         Some(s) if s.is_empty() => {
-            let list = List::new(vec![ListItem::new("ステータスなし")]).block(
+            let list = List::new(vec![ListItem::new("No statuses")]).block(
                 Block::default()
-                    .title(" ステータスフィルター ")
+                    .title(" Status Filter ")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan)),
             );
@@ -66,7 +66,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let list = List::new(list_items)
         .block(
             Block::default()
-                .title(" ステータスフィルター ")
+                .title(" Status Filter ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan)),
         )
@@ -99,12 +99,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             )
         } else if !state.search_query.is_empty() {
             format!(
-                "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",
+                "/ {}  ({} matches)  [n/N] navigate  [Esc] clear",
                 state.search_query,
                 display_indices.len()
             )
         } else {
-            "[j/k] 移動  [Space] 切替  [Enter] 決定  [/] 検索  [Esc] キャンセル".to_string()
+            "[j/k] move  [Space] toggle  [Enter] confirm  [/] search  [Esc] cancel".to_string()
         };
         let help_style = if state.search_active {
             Style::default().fg(Color::Cyan)
@@ -117,16 +117,16 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 }
 
 /// Generate the filter bar status text from current filter state.
-/// Returns "ALL", "(なし)", or comma-separated status names.
+/// Returns "ALL", "(none)", or comma-separated status names.
 pub fn status_filter_text(filter_ids: &[i64], statuses: &Option<Vec<IssueStatus>>) -> String {
     let Some(statuses) = statuses else {
-        return "読み込み中...".to_string();
+        return "Loading...".to_string();
     };
     if statuses.is_empty() {
         return "ALL".to_string();
     }
     if filter_ids.is_empty() {
-        return "(なし)".to_string();
+        return "(none)".to_string();
     }
     if filter_ids.len() == statuses.len() {
         return "ALL".to_string();
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_status_filter_text_none_selected() {
         let statuses = make_statuses();
-        assert_eq!(status_filter_text(&[], &Some(statuses)), "(なし)");
+        assert_eq!(status_filter_text(&[], &Some(statuses)), "(none)");
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_status_filter_text_loading() {
-        assert_eq!(status_filter_text(&[], &None), "読み込み中...");
+        assert_eq!(status_filter_text(&[], &None), "Loading...");
     }
 
     #[test]

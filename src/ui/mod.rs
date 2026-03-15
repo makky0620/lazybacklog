@@ -93,11 +93,11 @@ fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn render_help_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     let text = if state.search_active {
-        " [Enter] 確定  [Esc] キャンセル"
+        " [Enter] Confirm  [Esc] Cancel"
     } else if !state.search_query.is_empty() {
-        " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [n/N] 次/前のマッチ  [q] 終了"
+        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [[] []] Switch Space  [n/N] Next/Prev Match  [q] Quit"
     } else {
-        " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [/] 検索  [q] 終了"
+        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [[] []] Switch Space  [/] Search  [q] Quit"
     };
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);

@@ -69,7 +69,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
 }
 
 fn render_help_bar(frame: &mut Frame, area: Rect) {
-    let text = " [j/k] 移動  [Enter] 選択  [q] 終了";
+    let text = " [j/k] Move  [Enter] Select  [q] Quit";
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
 }

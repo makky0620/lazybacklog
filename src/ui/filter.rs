@@ -13,9 +13,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let space_state = state.current_space_state();
 
     if space_state.users_error {
-        let list = List::new(vec![ListItem::new("⚠ ユーザー取得失敗")]).block(
+        let list = List::new(vec![ListItem::new("⚠ Failed to fetch users")]).block(
             Block::default()
-                .title(" Assigneeフィルター ")
+                .title(" Assignee Filter ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan)),
         );
@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     }
 
     // Build full item list: [(full_list_idx, display_text)]
-    let mut all_items: Vec<(usize, String)> = vec![(0, "ALL (フィルターなし)".to_string())];
+    let mut all_items: Vec<(usize, String)> = vec![(0, "ALL (no filter)".to_string())];
     if let Some(users) = &space_state.users {
         for (i, user) in users.iter().enumerate() {
             all_items.push((i + 1, user.name.clone()));
@@ -57,7 +57,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let list = List::new(list_items)
         .block(
             Block::default()
-                .title(" Assigneeフィルター ")
+                .title(" Assignee Filter ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan)),
         )
@@ -90,12 +90,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             )
         } else if !state.search_query.is_empty() {
             format!(
-                "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",
+                "/ {}  ({} matches)  [n/N] navigate  [Esc] clear",
                 state.search_query,
                 display_items.len()
             )
         } else {
-            "[Enter] 選択  [/] 検索  [Esc] キャンセル".to_string()
+            "[Enter] Select  [/] Search  [Esc] Cancel".to_string()
         };
         let help_style = if state.search_active {
             Style::default().fg(Color::Cyan)
