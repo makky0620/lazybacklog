@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use std::time::Duration;
 
-use super::models::{Issue, Project, User};
+use super::models::{Issue, IssueStatus, Project, User};
 
 pub struct BacklogClient {
     base_url: String,
@@ -108,6 +108,24 @@ impl BacklogClient {
         resp.json::<Vec<User>>()
             .await
             .context("Failed to parse users response")
+    }
+
+    pub async fn fetch_statuses(&self, project_id: i64) -> Result<Vec<IssueStatus>> {
+        let resp = self
+            .http
+            .get(format!("{}/projects/{}/statuses", self.base_url, project_id))
+            .query(&[("apiKey", &self.api_key)])
+            .send()
+            .await
+            .context("Failed to connect to Backlog API")?;
+        if resp.status() == 401 {
+            anyhow::bail!("401 Unauthorized - check your API key");
+        }
+        resp.error_for_status_ref()
+            .context("Backlog API returned an error")?;
+        resp.json::<Vec<IssueStatus>>()
+            .await
+            .context("Failed to parse statuses response")
     }
 }
 
@@ -262,5 +280,55 @@ mod tests {
         let users = client.fetch_project_users(100).await.unwrap();
         assert_eq!(users.len(), 2);
         assert_eq!(users[0].name, "Alice");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_statuses_success() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/projects/100/statuses"))
+            .and(query_param("apiKey", "test_api_key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                { "id": 1, "name": "未対応" },
+                { "id": 2, "name": "処理中" },
+                { "id": 3, "name": "処理済み" },
+                { "id": 4, "name": "完了" }
+            ])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let statuses = client.fetch_statuses(100).await.unwrap();
+        assert_eq!(statuses.len(), 4);
+        assert_eq!(statuses[0].name, "未対応");
+        assert_eq!(statuses[3].name, "完了");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_statuses_401() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/projects/100/statuses"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let err = client.fetch_statuses(100).await.unwrap_err();
+        assert!(err.to_string().contains("401 Unauthorized"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_statuses_500() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/projects/100/statuses"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let err = client.fetch_statuses(100).await.unwrap_err();
+        assert!(err.to_string().contains("error"));
     }
 }
