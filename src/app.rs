@@ -181,7 +181,6 @@ impl AppState {
         self.search_active = false;
         self.search_query.clear();
         self.search_match_idx = 0;
-        self.selected_issue_idx = 0;
         self.filter_cursor_idx = 0;
         self.status_filter_cursor_idx = 0;
     }
@@ -709,7 +708,7 @@ mod tests {
         assert!(!state.search_active);
         assert!(state.search_query.is_empty());
         assert_eq!(state.search_match_idx, 0);
-        assert_eq!(state.selected_issue_idx, 0);
+        assert_eq!(state.selected_issue_idx, 5); // selected_issue_idx is NOT reset by clear_search
         assert_eq!(state.filter_cursor_idx, 0);
         assert_eq!(state.status_filter_cursor_idx, 0);
     }
@@ -974,6 +973,23 @@ mod tests {
         state.search_query = "proj".to_string();
         state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-1")));
         assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
+    }
+
+    #[test]
+    fn test_issue_detail_loaded_preserves_cursor_position() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("PROJ-3")],
+        });
+        state.selected_issue_idx = 2;
+        state.search_active = true;
+        state.search_query = "proj".to_string();
+        state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-3")));
+        assert_eq!(state.selected_issue_idx, 2); // cursor preserved
+        assert!(!state.search_active); // search still cleared
         assert!(state.search_query.is_empty());
     }
 }
