@@ -204,6 +204,38 @@ fn handle_list_key(
     config: &config::Config,
     tx: mpsc::UnboundedSender<AppEvent>,
 ) {
+    // Search mode: intercept all keys for query editing
+    if state.search_active {
+        match key.code {
+            KeyCode::Char(c) => {
+                state.search_query.push(c);
+                state.search_match_idx = 0;
+                let matches = state.matching_issue_indices();
+                if let Some(&first) = matches.first() {
+                    state.selected_issue_idx = first;
+                }
+            }
+            KeyCode::Backspace => {
+                state.search_query.pop();
+                if !state.search_query.is_empty() {
+                    state.search_match_idx = 0;
+                    let matches = state.matching_issue_indices();
+                    if let Some(&first) = matches.first() {
+                        state.selected_issue_idx = first;
+                    }
+                }
+            }
+            KeyCode::Enter => {
+                state.search_active = false;
+            }
+            KeyCode::Esc => {
+                state.clear_search();
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key.code {
         KeyCode::Char('q') => state.should_quit = true,
         KeyCode::Char('j') | KeyCode::Down => state.navigate_down(),
@@ -273,6 +305,7 @@ fn handle_list_key(
             state.screen = Screen::StatusFilter;
         }
         KeyCode::Char('r') => {
+            state.clear_search();
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
             let status_ids = state.current_space_state().filter_status_ids.clone();
@@ -285,6 +318,31 @@ fn handle_list_key(
         }
         KeyCode::Char('[') => {
             state.switch_space_prev();
+        }
+        KeyCode::Char('/') => {
+            state.search_active = true;
+            state.search_query.clear();
+            state.search_match_idx = 0;
+        }
+        KeyCode::Char('n') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_issue_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + 1) % matches.len();
+                    state.selected_issue_idx = matches[state.search_match_idx];
+                }
+            }
+        }
+        KeyCode::Char('N') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_issue_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + matches.len() - 1) % matches.len();
+                    state.selected_issue_idx = matches[state.search_match_idx];
+                }
+            }
         }
         _ => {}
     }
