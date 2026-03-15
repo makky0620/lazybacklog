@@ -176,13 +176,26 @@ impl AppState {
                 if let Some(state) = self.spaces.get_mut(&space) {
                     state.loading_issues = false;
                     state.loading_projects = false;
+                    state.loading_statuses = false;
+                    if state.statuses.is_none() {
+                        state.statuses = Some(vec![]);
+                    }
                     if state.users.is_none() {
                         state.users_error = true;
                     }
                 }
             }
-            AppEvent::StatusesLoaded { .. } => {
-                // TODO: implement in Task 5
+            AppEvent::StatusesLoaded { space, statuses } => {
+                if let Some(state) = self.spaces.get_mut(&space) {
+                    let default_ids: Vec<i64> = statuses
+                        .iter()
+                        .filter(|s| s.name != "完了" && s.name != "Closed")
+                        .map(|s| s.id)
+                        .collect();
+                    state.filter_status_ids = default_ids;
+                    state.statuses = Some(statuses);
+                    state.loading_statuses = false;
+                }
             }
             AppEvent::Key(_) => {}
         }
@@ -460,6 +473,86 @@ mod tests {
         assert_eq!(state.screen, Screen::ProjectSelect);
         assert_eq!(state.project_cursor_idx, 0);
         assert!(state.filter_assignee_id.is_none());
+    }
+
+    fn make_status(id: i64, name: &str) -> IssueStatus {
+        IssueStatus { id, name: name.to_string() }
+    }
+
+    #[test]
+    fn test_statuses_loaded_sets_default_filter_excluding_closed() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "space1".to_string(),
+            statuses: vec![
+                make_status(1, "未対応"),
+                make_status(2, "処理中"),
+                make_status(3, "処理済み"),
+                make_status(4, "完了"),
+            ],
+        });
+        let ss = state.current_space_state();
+        assert!(ss.statuses.is_some());
+        assert!(!ss.loading_statuses);
+        assert_eq!(ss.filter_status_ids, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_statuses_loaded_excludes_closed_english() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "space1".to_string(),
+            statuses: vec![
+                make_status(1, "Open"),
+                make_status(2, "In Progress"),
+                make_status(3, "Resolved"),
+                make_status(4, "Closed"),
+            ],
+        });
+        let ss = state.current_space_state();
+        assert_eq!(ss.filter_status_ids, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_statuses_loaded_all_open_no_exclusion() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "space1".to_string(),
+            statuses: vec![
+                make_status(1, "In Progress"),
+                make_status(2, "Review"),
+            ],
+        });
+        let ss = state.current_space_state();
+        assert_eq!(ss.filter_status_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn test_statuses_loaded_wrong_space_is_noop() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "nonexistent".to_string(),
+            statuses: vec![make_status(1, "Open")],
+        });
+        assert!(state.current_space_state().statuses.is_none());
+        assert!(state.current_space_state().filter_status_ids.is_empty());
+    }
+
+    #[test]
+    fn test_api_error_resets_loading_statuses() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.current_space_state_mut().loading_statuses = true;
+        state.handle_event(AppEvent::ApiError {
+            space: "space1".to_string(),
+            message: "timeout".to_string(),
+        });
+        assert!(!state.current_space_state().loading_statuses);
+        assert!(state.current_space_state().statuses.is_some());
     }
 
     #[test]
