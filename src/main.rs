@@ -227,6 +227,11 @@ fn handle_list_key(
             };
             state.screen = Screen::Filter;
         }
+        KeyCode::Char('s') => {
+            state.status_filter_pending = state.current_space_state().filter_status_ids.clone();
+            state.status_filter_cursor_idx = 0;
+            state.screen = Screen::StatusFilter;
+        }
         KeyCode::Char('r') => {
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
