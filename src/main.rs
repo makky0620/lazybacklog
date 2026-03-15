@@ -302,12 +302,60 @@ fn handle_filter_key(
 }
 
 fn handle_status_filter_key(
-    _key: crossterm::event::KeyEvent,
-    _state: &mut AppState,
-    _config: &config::Config,
-    _tx: mpsc::UnboundedSender<AppEvent>,
+    key: crossterm::event::KeyEvent,
+    state: &mut AppState,
+    config: &config::Config,
+    tx: mpsc::UnboundedSender<AppEvent>,
 ) {
-    // TODO: implement in Task 11
+    let status_count = state
+        .current_space_state()
+        .statuses
+        .as_ref()
+        .map(|s| s.len())
+        .unwrap_or(0);
+
+    match key.code {
+        KeyCode::Esc => {
+            state.status_filter_pending = vec![];
+            state.screen = Screen::IssueList;
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            if status_count > 0 && state.status_filter_cursor_idx + 1 < status_count {
+                state.status_filter_cursor_idx += 1;
+            }
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            if state.status_filter_cursor_idx > 0 {
+                state.status_filter_cursor_idx -= 1;
+            }
+        }
+        KeyCode::Char(' ') => {
+            if status_count > 0 {
+                let id = state
+                    .current_space_state()
+                    .statuses
+                    .as_ref()
+                    .and_then(|s| s.get(state.status_filter_cursor_idx))
+                    .map(|s| s.id);
+                if let Some(id) = id {
+                    ui::status_filter::toggle_status(&mut state.status_filter_pending, id);
+                }
+            }
+        }
+        KeyCode::Enter => {
+            let pending = state.status_filter_pending.clone();
+            state.current_space_state_mut().filter_status_ids = pending;
+            state.status_filter_pending = vec![];
+            state.screen = Screen::IssueList;
+            let project_id = state.selected_project().map(|p| p.id);
+            let assignee_id = state.filter_assignee_id;
+            let status_ids = state.current_space_state().filter_status_ids.clone();
+            state.current_space_state_mut().issues = None;
+            state.current_space_state_mut().loading_issues = true;
+            fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
+        }
+        _ => {}
+    }
 }
 
 fn handle_project_select_key(
