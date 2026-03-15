@@ -123,18 +123,38 @@ impl AppState {
             .as_ref()
             .map(|v| v.len())
             .unwrap_or(0);
-        if len > 0 && self.selected_issue_idx < len - 1 {
-            self.selected_issue_idx += 1;
+        if len == 0 {
+            return;
+        }
+        if self.search_query.is_empty() {
+            if self.selected_issue_idx < len - 1 {
+                self.selected_issue_idx += 1;
+            }
+        } else {
+            let matches = self.matching_issue_indices();
+            if let Some(pos) = matches.iter().position(|&i| i > self.selected_issue_idx) {
+                self.selected_issue_idx = matches[pos];
+                self.search_match_idx = pos;
+            }
         }
     }
 
     pub fn navigate_up(&mut self) {
-        if self.selected_issue_idx > 0 {
-            self.selected_issue_idx -= 1;
+        if self.search_query.is_empty() {
+            if self.selected_issue_idx > 0 {
+                self.selected_issue_idx -= 1;
+            }
+        } else {
+            let matches = self.matching_issue_indices();
+            if let Some(pos) = matches.iter().rposition(|&i| i < self.selected_issue_idx) {
+                self.selected_issue_idx = matches[pos];
+                self.search_match_idx = pos;
+            }
         }
     }
 
     pub fn switch_space_next(&mut self) {
+        self.clear_search();
         self.current_space_idx = (self.current_space_idx + 1) % self.config.spaces.len();
         self.selected_issue_idx = 0;
         self.detail_issue = None;
@@ -144,6 +164,7 @@ impl AppState {
     }
 
     pub fn switch_space_prev(&mut self) {
+        self.clear_search();
         if self.current_space_idx == 0 {
             self.current_space_idx = self.config.spaces.len() - 1;
         } else {
@@ -239,6 +260,7 @@ impl AppState {
                 self.status_message = None;
             }
             AppEvent::IssueDetailLoaded(issue) => {
+                self.clear_search();
                 self.detail_issue = Some(issue);
                 self.screen = Screen::IssueDetail;
             }
@@ -852,5 +874,106 @@ mod tests {
         state.search_query = "open".to_string();
         let indices = state.matching_status_indices();
         assert!(indices.is_empty());
+    }
+
+    #[test]
+    fn test_navigate_down_with_search_skips_non_matching() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("ABC-1"),  // non-matching
+                make_issue("PROJ-2"),
+            ],
+        });
+        state.search_query = "proj".to_string();
+        state.selected_issue_idx = 0; // at PROJ-1
+        state.navigate_down();
+        assert_eq!(state.selected_issue_idx, 2); // jumps to PROJ-2, skips ABC-1
+    }
+
+    #[test]
+    fn test_navigate_down_with_search_no_further_match_stays() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1"), make_issue("ABC-1")],
+        });
+        state.search_query = "proj".to_string();
+        state.selected_issue_idx = 0; // at PROJ-1, last match
+        state.navigate_down();
+        assert_eq!(state.selected_issue_idx, 0); // stays
+    }
+
+    #[test]
+    fn test_navigate_up_with_search_skips_non_matching() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("ABC-1"),  // non-matching
+                make_issue("PROJ-2"),
+            ],
+        });
+        state.search_query = "proj".to_string();
+        state.selected_issue_idx = 2; // at PROJ-2
+        state.navigate_up();
+        assert_eq!(state.selected_issue_idx, 0); // jumps to PROJ-1, skips ABC-1
+    }
+
+    #[test]
+    fn test_navigate_up_with_search_no_earlier_match_stays() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("ABC-1"), make_issue("PROJ-1")],
+        });
+        state.search_query = "proj".to_string();
+        state.selected_issue_idx = 1; // at PROJ-1, first match
+        state.navigate_up();
+        assert_eq!(state.selected_issue_idx, 1); // stays
+    }
+
+    #[test]
+    fn test_switch_space_next_clears_search() {
+        let config = make_config("space1", &["space1", "space2"]);
+        let mut state = AppState::new(config, false);
+        state.search_active = true;
+        state.search_query = "proj".to_string();
+        state.search_match_idx = 1;
+        state.switch_space_next();
+        assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
+        assert_eq!(state.search_match_idx, 0);
+    }
+
+    #[test]
+    fn test_switch_space_prev_clears_search() {
+        let config = make_config("space1", &["space1", "space2"]);
+        let mut state = AppState::new(config, false);
+        state.search_active = true;
+        state.search_query = "proj".to_string();
+        state.search_match_idx = 1;
+        state.switch_space_prev();
+        assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
+        assert_eq!(state.search_match_idx, 0);
+    }
+
+    #[test]
+    fn test_issue_detail_loaded_clears_search() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.search_active = true;
+        state.search_query = "proj".to_string();
+        state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-1")));
+        assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
     }
 }
