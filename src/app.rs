@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::api::models::{Issue, Project, User};
+use crate::api::models::{Issue, IssueStatus, Project, User};
 use crate::config::Config;
 use crate::event::AppEvent;
 
@@ -10,6 +10,7 @@ pub enum Screen {
     IssueList,
     IssueDetail,
     Filter,
+    StatusFilter,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -21,6 +22,9 @@ pub struct SpaceState {
     pub projects: Option<Vec<Project>>,
     pub loading_projects: bool,
     pub selected_project: Option<Project>,
+    pub statuses: Option<Vec<IssueStatus>>,
+    pub loading_statuses: bool,
+    pub filter_status_ids: Vec<i64>,
 }
 
 pub struct AppState {
@@ -35,6 +39,8 @@ pub struct AppState {
     pub screen: Screen,
     pub status_message: Option<String>,
     pub should_quit: bool,
+    pub status_filter_cursor_idx: usize,
+    pub status_filter_pending: Vec<i64>,
 }
 
 impl AppState {
@@ -60,6 +66,8 @@ impl AppState {
             screen: Screen::ProjectSelect,
             status_message: None,
             should_quit: false,
+            status_filter_cursor_idx: 0,
+            status_filter_pending: vec![],
         }
     }
 
@@ -452,5 +460,22 @@ mod tests {
         assert_eq!(state.screen, Screen::ProjectSelect);
         assert_eq!(state.project_cursor_idx, 0);
         assert!(state.filter_assignee_id.is_none());
+    }
+
+    #[test]
+    fn test_space_state_default_statuses_is_none() {
+        let config = make_config("space1", &["space1"]);
+        let state = AppState::new(config);
+        assert!(state.current_space_state().statuses.is_none());
+        assert!(!state.current_space_state().loading_statuses);
+        assert!(state.current_space_state().filter_status_ids.is_empty());
+    }
+
+    #[test]
+    fn test_appstate_default_status_filter_fields() {
+        let config = make_config("space1", &["space1"]);
+        let state = AppState::new(config);
+        assert_eq!(state.status_filter_cursor_idx, 0);
+        assert!(state.status_filter_pending.is_empty());
     }
 }

@@ -134,6 +134,7 @@ async fn run<B: ratatui::backend::Backend>(
                     Screen::IssueDetail => handle_detail_key(key, &mut state),
                     Screen::Filter => handle_filter_key(key, &mut state, &config, tx.clone()),
                     Screen::ProjectSelect => handle_project_select_key(key, &mut state, &config, tx.clone()),
+                    Screen::StatusFilter => handle_status_filter_key(key, &mut state, &config, tx.clone()),
                 },
                 other => {
                     state.handle_event(other);
@@ -295,6 +296,15 @@ fn handle_filter_key(
         }
         _ => {}
     }
+}
+
+fn handle_status_filter_key(
+    _key: crossterm::event::KeyEvent,
+    _state: &mut AppState,
+    _config: &config::Config,
+    _tx: mpsc::UnboundedSender<AppEvent>,
+) {
+    // TODO: implement in Task 11
 }
 
 fn handle_project_select_key(

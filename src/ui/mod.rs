@@ -51,6 +51,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         }
         Screen::IssueList => {}
         Screen::ProjectSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
+        Screen::StatusFilter => {} // TODO: implement in Task 7-8
     }
 
     render_status_message(frame, area, state);
