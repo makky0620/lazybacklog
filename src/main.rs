@@ -22,15 +22,23 @@ use event::AppEvent;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = config::load().unwrap_or_else(|e| {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    });
+    let demo_mode = std::env::args().any(|a| a == "--demo");
+
+    let config = if demo_mode {
+        mock::demo_config()
+    } else {
+        config::load().unwrap_or_else(|e| {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        })
+    };
 
     #[cfg(unix)]
-    if let Some(warning) = config::check_permissions(&config::config_path()) {
-        eprintln!("{}", warning);
-        std::thread::sleep(std::time::Duration::from_secs(2));
+    if !demo_mode {
+        if let Some(warning) = config::check_permissions(&config::config_path()) {
+            eprintln!("{}", warning);
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
     }
 
     enable_raw_mode()?;
@@ -39,7 +47,7 @@ async fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = run(&mut terminal, config).await;
+    let result = run(&mut terminal, config, demo_mode).await;
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -51,6 +59,7 @@ async fn main() -> Result<()> {
 async fn run<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     config: config::Config,
+    demo_mode: bool,
 ) -> Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel::<AppEvent>();
 
@@ -67,7 +76,7 @@ async fn run<B: ratatui::backend::Backend>(
         }
     });
 
-    let mut state = AppState::new(config.clone(), false);
+    let mut state = AppState::new(config.clone(), demo_mode);
 
     // Set loading_projects = true for ALL spaces before spawning, to prevent
     // needs_projects_fetch() from firing while startup tasks are in flight.
