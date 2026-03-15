@@ -86,7 +86,10 @@ impl AppState {
 
     pub fn needs_issue_fetch(&self) -> bool {
         let state = self.current_space_state();
-        state.issues.is_none() && !state.loading_issues
+        state.statuses.is_some()
+            && state.issues.is_none()
+            && !state.loading_issues
+            && !state.loading_statuses
     }
 
     pub fn needs_projects_fetch(&self) -> bool {
@@ -384,9 +387,25 @@ mod tests {
     }
 
     #[test]
-    fn test_needs_issue_fetch_true_when_no_issues() {
+    fn test_needs_issue_fetch_false_when_statuses_not_loaded() {
         let config = make_config("space1", &["space1"]);
         let state = AppState::new(config);
+        assert!(!state.needs_issue_fetch());
+    }
+
+    #[test]
+    fn test_needs_issue_fetch_true_when_statuses_loaded() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.current_space_state_mut().statuses = Some(vec![]);
+        assert!(state.needs_issue_fetch());
+    }
+
+    #[test]
+    fn test_needs_issue_fetch_true_when_no_issues() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config);
+        state.current_space_state_mut().statuses = Some(vec![]);
         assert!(state.needs_issue_fetch());
     }
 
@@ -394,6 +413,7 @@ mod tests {
     fn test_needs_issue_fetch_false_when_loading() {
         let config = make_config("space1", &["space1"]);
         let mut state = AppState::new(config);
+        state.current_space_state_mut().statuses = Some(vec![]);
         state.current_space_state_mut().loading_issues = true;
         assert!(!state.needs_issue_fetch());
     }
@@ -402,6 +422,7 @@ mod tests {
     fn test_needs_issue_fetch_false_when_loaded() {
         let config = make_config("space1", &["space1"]);
         let mut state = AppState::new(config);
+        state.current_space_state_mut().statuses = Some(vec![]);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
             issues: vec![],
