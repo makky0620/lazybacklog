@@ -1,4 +1,4 @@
-use crate::api::models::{Issue, Project, User};
+use crate::api::models::{Issue, IssueStatus, Project, User};
 use crossterm::event::KeyEvent;
 
 pub enum AppEvent {
@@ -14,4 +14,6 @@ pub enum AppEvent {
     ProjectsLoaded { space: String, projects: Vec<Project> },
     /// Any API error
     ApiError { space: String, message: String },
+    /// Statuses for a space fetched
+    StatusesLoaded { space: String, statuses: Vec<IssueStatus> },
 }

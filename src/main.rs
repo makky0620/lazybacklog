@@ -141,7 +141,7 @@ async fn run<B: ratatui::backend::Backend>(
                     if state.screen == Screen::IssueList && state.needs_issue_fetch() {
                         let project_id = state.selected_project().map(|p| p.id);
                         let assignee_id = state.filter_assignee_id;
-                        fetch_issues(&state, &config, tx.clone(), project_id, assignee_id);
+                        fetch_issues(&state, &config, tx.clone(), project_id, assignee_id, vec![]);
                         state.current_space_state_mut().loading_issues = true;
                     }
                     // Guard 2: project auto-fetch (only on ProjectSelect screen)
@@ -230,7 +230,7 @@ fn handle_list_key(
             let assignee_id = state.filter_assignee_id;
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
-            fetch_issues(state, config, tx, project_id, assignee_id);
+            fetch_issues(state, config, tx, project_id, assignee_id, vec![]);
         }
         KeyCode::Char(']') => {
             state.switch_space_next();
@@ -291,7 +291,7 @@ fn handle_filter_key(
             let assignee_id = state.filter_assignee_id;
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
-            fetch_issues(state, config, tx, project_id, assignee_id);
+            fetch_issues(state, config, tx, project_id, assignee_id, vec![]);
         }
         _ => {}
     }
@@ -340,7 +340,7 @@ fn handle_project_select_key(
                 state.screen = Screen::IssueList;
                 state.current_space_state_mut().issues = None;
                 state.current_space_state_mut().loading_issues = true;
-                fetch_issues(state, config, tx, Some(project_id), state.filter_assignee_id);
+                fetch_issues(state, config, tx, Some(project_id), state.filter_assignee_id, vec![]);
             }
         }
         _ => {}
@@ -353,6 +353,7 @@ fn fetch_issues(
     tx: mpsc::UnboundedSender<AppEvent>,
     project_id: Option<i64>,
     assignee_id: Option<i64>,
+    status_ids: Vec<i64>,
 ) {
     let space_name = state.current_space_name().to_string();
     let space_cfg = config
@@ -363,7 +364,7 @@ fn fetch_issues(
         .clone();
     tokio::spawn(async move {
         match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
-            Ok(client) => match client.fetch_issues(project_id, assignee_id).await {
+            Ok(client) => match client.fetch_issues(project_id, assignee_id, &status_ids).await {
                 Ok(issues) => {
                     let _ = tx.send(AppEvent::IssuesLoaded {
                         space: space_name,

@@ -173,6 +173,9 @@ impl AppState {
                     }
                 }
             }
+            AppEvent::StatusesLoaded { .. } => {
+                // TODO: implement in Task 5
+            }
             AppEvent::Key(_) => {}
         }
     }
