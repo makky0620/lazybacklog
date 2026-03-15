@@ -67,7 +67,7 @@ async fn run<B: ratatui::backend::Backend>(
         }
     });
 
-    let mut state = AppState::new(config.clone());
+    let mut state = AppState::new(config.clone(), false);
 
     // Set loading_projects = true for ALL spaces before spawning, to prevent
     // needs_projects_fetch() from firing while startup tasks are in flight.

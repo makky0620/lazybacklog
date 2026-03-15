@@ -28,6 +28,7 @@ pub struct SpaceState {
 }
 
 pub struct AppState {
+    pub demo_mode: bool,
     pub config: Config,
     pub current_space_idx: usize,
     pub spaces: HashMap<String, SpaceState>,
@@ -44,7 +45,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, demo_mode: bool) -> Self {
         let mut spaces = HashMap::new();
         for space in &config.spaces {
             spaces.insert(space.name.clone(), SpaceState::default());
@@ -55,6 +56,7 @@ impl AppState {
             .position(|s| s.name == config.default_space)
             .unwrap_or(0);
         Self {
+            demo_mode,
             config,
             current_space_idx,
             spaces,
@@ -244,7 +246,7 @@ mod tests {
     #[test]
     fn test_initial_state() {
         let config = make_config("space1", &["space1", "space2"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert_eq!(state.current_space_name(), "space1");
         assert_eq!(state.current_space_idx, 0);
         assert_eq!(state.screen, Screen::ProjectSelect);
@@ -254,7 +256,7 @@ mod tests {
     #[test]
     fn test_default_space_selection() {
         let config = make_config("space2", &["space1", "space2"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert_eq!(state.current_space_idx, 1);
         assert_eq!(state.current_space_name(), "space2");
     }
@@ -262,7 +264,7 @@ mod tests {
     #[test]
     fn test_issues_loaded_event() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
             issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2")],
@@ -277,7 +279,7 @@ mod tests {
     #[test]
     fn test_issue_detail_loaded_event() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-5")));
         assert_eq!(state.screen, Screen::IssueDetail);
         assert_eq!(state.detail_issue.unwrap().issue_key, "PROJ-5");
@@ -286,7 +288,7 @@ mod tests {
     #[test]
     fn test_space_users_loaded_event() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::SpaceUsersLoaded {
             space: "space1".to_string(),
             users: vec![
@@ -308,7 +310,7 @@ mod tests {
     #[test]
     fn test_api_error_sets_status_message() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::ApiError {
             space: "space1".to_string(),
             message: "401 Unauthorized".to_string(),
@@ -321,7 +323,7 @@ mod tests {
     #[test]
     fn test_api_error_sets_users_error_when_no_users() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::ApiError {
             space: "space1".to_string(),
             message: "timeout".to_string(),
@@ -332,7 +334,7 @@ mod tests {
     #[test]
     fn test_navigate_down() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
             issues: vec![
@@ -352,7 +354,7 @@ mod tests {
     #[test]
     fn test_navigate_up() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
             issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2")],
@@ -367,7 +369,7 @@ mod tests {
     #[test]
     fn test_switch_space_next() {
         let config = make_config("space1", &["space1", "space2", "space3"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.switch_space_next();
         assert_eq!(state.current_space_name(), "space2");
         state.switch_space_next();
@@ -379,7 +381,7 @@ mod tests {
     #[test]
     fn test_switch_space_prev() {
         let config = make_config("space1", &["space1", "space2", "space3"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.switch_space_prev(); // wraps around
         assert_eq!(state.current_space_name(), "space3");
         state.switch_space_prev();
@@ -389,14 +391,14 @@ mod tests {
     #[test]
     fn test_needs_issue_fetch_false_when_statuses_not_loaded() {
         let config = make_config("space1", &["space1"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert!(!state.needs_issue_fetch());
     }
 
     #[test]
     fn test_needs_issue_fetch_true_when_statuses_loaded() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().statuses = Some(vec![]);
         assert!(state.needs_issue_fetch());
     }
@@ -404,7 +406,7 @@ mod tests {
     #[test]
     fn test_needs_issue_fetch_true_when_no_issues() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().statuses = Some(vec![]);
         assert!(state.needs_issue_fetch());
     }
@@ -412,7 +414,7 @@ mod tests {
     #[test]
     fn test_needs_issue_fetch_false_when_loading() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().statuses = Some(vec![]);
         state.current_space_state_mut().loading_issues = true;
         assert!(!state.needs_issue_fetch());
@@ -421,7 +423,7 @@ mod tests {
     #[test]
     fn test_needs_issue_fetch_false_when_loaded() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().statuses = Some(vec![]);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
@@ -433,7 +435,7 @@ mod tests {
     #[test]
     fn test_projects_loaded_event() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::ProjectsLoaded {
             space: "space1".to_string(),
             projects: vec![crate::api::models::Project {
@@ -451,7 +453,7 @@ mod tests {
     #[test]
     fn test_api_error_resets_loading_projects() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().loading_projects = true;
         state.handle_event(AppEvent::ApiError {
             space: "space1".to_string(),
@@ -463,14 +465,14 @@ mod tests {
     #[test]
     fn test_needs_projects_fetch_true_when_no_projects() {
         let config = make_config("space1", &["space1"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert!(state.needs_projects_fetch());
     }
 
     #[test]
     fn test_needs_projects_fetch_false_when_loading() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().loading_projects = true;
         assert!(!state.needs_projects_fetch());
     }
@@ -478,7 +480,7 @@ mod tests {
     #[test]
     fn test_needs_projects_fetch_false_when_loaded() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::ProjectsLoaded {
             space: "space1".to_string(),
             projects: vec![],
@@ -489,7 +491,7 @@ mod tests {
     #[test]
     fn test_switch_space_resets_project_state() {
         let config = make_config("space1", &["space1", "space2"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.filter_assignee_id = Some(42);
         state.project_cursor_idx = 3;
         state.switch_space_next();
@@ -508,7 +510,7 @@ mod tests {
     #[test]
     fn test_statuses_loaded_sets_default_filter_excluding_closed() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::StatusesLoaded {
             space: "space1".to_string(),
             statuses: vec![
@@ -527,7 +529,7 @@ mod tests {
     #[test]
     fn test_statuses_loaded_excludes_closed_english() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::StatusesLoaded {
             space: "space1".to_string(),
             statuses: vec![
@@ -544,7 +546,7 @@ mod tests {
     #[test]
     fn test_statuses_loaded_all_open_no_exclusion() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::StatusesLoaded {
             space: "space1".to_string(),
             statuses: vec![make_status(1, "In Progress"), make_status(2, "Review")],
@@ -556,7 +558,7 @@ mod tests {
     #[test]
     fn test_statuses_loaded_wrong_space_is_noop() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::StatusesLoaded {
             space: "nonexistent".to_string(),
             statuses: vec![make_status(1, "Open")],
@@ -568,7 +570,7 @@ mod tests {
     #[test]
     fn test_api_error_resets_loading_statuses() {
         let config = make_config("space1", &["space1"]);
-        let mut state = AppState::new(config);
+        let mut state = AppState::new(config, false);
         state.current_space_state_mut().loading_statuses = true;
         state.handle_event(AppEvent::ApiError {
             space: "space1".to_string(),
@@ -581,7 +583,7 @@ mod tests {
     #[test]
     fn test_space_state_default_statuses_is_none() {
         let config = make_config("space1", &["space1"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert!(state.current_space_state().statuses.is_none());
         assert!(!state.current_space_state().loading_statuses);
         assert!(state.current_space_state().filter_status_ids.is_empty());
@@ -590,7 +592,7 @@ mod tests {
     #[test]
     fn test_appstate_default_status_filter_fields() {
         let config = make_config("space1", &["space1"]);
-        let state = AppState::new(config);
+        let state = AppState::new(config, false);
         assert_eq!(state.status_filter_cursor_idx, 0);
         assert!(state.status_filter_pending.is_empty());
     }
