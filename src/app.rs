@@ -186,6 +186,48 @@ impl AppState {
             .collect()
     }
 
+    /// Returns full-list indices of users (and ALL row at 0) matching the current search_query.
+    /// Index 0 = "ALL" row, indices 1.. = users.
+    /// Returns all indices when query is empty.
+    pub fn matching_user_indices(&self) -> Vec<usize> {
+        let space_state = self.current_space_state();
+        let user_count = space_state.users.as_ref().map(|u| u.len()).unwrap_or(0);
+        if self.search_query.is_empty() {
+            return (0..=user_count).collect();
+        }
+        let query = self.search_query.to_lowercase();
+        let mut indices = vec![];
+        if "all".contains(&query) {
+            indices.push(0);
+        }
+        if let Some(users) = &space_state.users {
+            for (i, user) in users.iter().enumerate() {
+                if user.name.to_lowercase().contains(&query) {
+                    indices.push(i + 1);
+                }
+            }
+        }
+        indices
+    }
+
+    /// Returns full-list indices of statuses matching the current search_query.
+    /// Returns all indices when query is empty.
+    pub fn matching_status_indices(&self) -> Vec<usize> {
+        let Some(statuses) = self.current_space_state().statuses.as_ref() else {
+            return vec![];
+        };
+        if self.search_query.is_empty() {
+            return (0..statuses.len()).collect();
+        }
+        let query = self.search_query.to_lowercase();
+        statuses
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.name.to_lowercase().contains(&query))
+            .map(|(i, _)| i)
+            .collect()
+    }
+
     pub fn handle_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::IssuesLoaded { space, issues } => {
@@ -722,6 +764,93 @@ mod tests {
         state.search_query = "proj".to_string();
         // No IssuesLoaded event — issues is None
         let indices = state.matching_issue_indices();
+        assert!(indices.is_empty());
+    }
+
+    #[test]
+    fn test_matching_user_indices_empty_query_returns_all() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::SpaceUsersLoaded {
+            space: "space1".to_string(),
+            users: vec![
+                User { id: 1, name: "Alice".to_string() },
+                User { id: 2, name: "Bob".to_string() },
+            ],
+        });
+        // 0 = ALL, 1 = Alice, 2 = Bob
+        let indices = state.matching_user_indices();
+        assert_eq!(indices, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_matching_user_indices_query_all_matches_all_row() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::SpaceUsersLoaded {
+            space: "space1".to_string(),
+            users: vec![User { id: 1, name: "Alice".to_string() }],
+        });
+        state.search_query = "all".to_string();
+        let indices = state.matching_user_indices();
+        assert!(indices.contains(&0)); // "ALL" row matches
+    }
+
+    #[test]
+    fn test_matching_user_indices_filters_by_name() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::SpaceUsersLoaded {
+            space: "space1".to_string(),
+            users: vec![
+                User { id: 1, name: "Alice".to_string() },
+                User { id: 2, name: "Bob".to_string() },
+            ],
+        });
+        state.search_query = "alice".to_string();
+        let indices = state.matching_user_indices();
+        assert_eq!(indices, vec![1]); // index 1 = Alice, ALL row doesn't match "alice"
+    }
+
+    #[test]
+    fn test_matching_status_indices_empty_query_returns_all() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "space1".to_string(),
+            statuses: vec![
+                make_status(1, "Open"),
+                make_status(2, "In Progress"),
+                make_status(3, "Closed"),
+            ],
+        });
+        let indices = state.matching_status_indices();
+        assert_eq!(indices, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_matching_status_indices_filters_by_name() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::StatusesLoaded {
+            space: "space1".to_string(),
+            statuses: vec![
+                make_status(1, "Open"),
+                make_status(2, "In Progress"),
+                make_status(3, "Closed"),
+            ],
+        });
+        state.search_query = "open".to_string();
+        let indices = state.matching_status_indices();
+        assert_eq!(indices, vec![0]);
+    }
+
+    #[test]
+    fn test_matching_status_indices_no_statuses_returns_empty() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.search_query = "open".to_string();
+        let indices = state.matching_status_indices();
         assert!(indices.is_empty());
     }
 }
