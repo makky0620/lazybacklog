@@ -23,8 +23,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn render_title(frame: &mut Frame, area: Rect, state: &AppState) {
     let title = format!(" lazybacklog ──── [{}] ", state.current_space_name());
-    let paragraph = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let paragraph = Paragraph::new(title).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
     frame.render_widget(paragraph, area);
 }
 
@@ -32,8 +35,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
     let space_state = state.current_space_state();
 
     if space_state.loading_projects {
-        let loading =
-            Paragraph::new("Loading projects...").style(Style::default().fg(Color::Gray));
+        let loading = Paragraph::new("Loading projects...").style(Style::default().fg(Color::Gray));
         frame.render_widget(loading, area);
         return;
     }
@@ -41,8 +43,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
     let projects = match &space_state.projects {
         Some(p) if !p.is_empty() => p,
         _ => {
-            let msg = Paragraph::new("No projects found.")
-                .style(Style::default().fg(Color::Gray));
+            let msg = Paragraph::new("No projects found.").style(Style::default().fg(Color::Gray));
             frame.render_widget(msg, area);
             return;
         }
@@ -69,7 +70,6 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn render_help_bar(frame: &mut Frame, area: Rect) {
     let text = " [j/k] 移動  [Enter] 選択  [q] 終了";
-    let paragraph =
-        Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
+    let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
 }

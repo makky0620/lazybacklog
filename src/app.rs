@@ -436,9 +436,11 @@ mod tests {
         let mut state = AppState::new(config);
         state.handle_event(AppEvent::ProjectsLoaded {
             space: "space1".to_string(),
-            projects: vec![
-                crate::api::models::Project { id: 1, project_key: "PROJ".to_string(), name: "My Project".to_string() },
-            ],
+            projects: vec![crate::api::models::Project {
+                id: 1,
+                project_key: "PROJ".to_string(),
+                name: "My Project".to_string(),
+            }],
         });
         let projects = state.current_space_state().projects.as_ref().unwrap();
         assert_eq!(projects.len(), 1);
@@ -497,7 +499,10 @@ mod tests {
     }
 
     fn make_status(id: i64, name: &str) -> IssueStatus {
-        IssueStatus { id, name: name.to_string() }
+        IssueStatus {
+            id,
+            name: name.to_string(),
+        }
     }
 
     #[test]
@@ -542,10 +547,7 @@ mod tests {
         let mut state = AppState::new(config);
         state.handle_event(AppEvent::StatusesLoaded {
             space: "space1".to_string(),
-            statuses: vec![
-                make_status(1, "In Progress"),
-                make_status(2, "Review"),
-            ],
+            statuses: vec![make_status(1, "In Progress"), make_status(2, "Review")],
         });
         let ss = state.current_space_state();
         assert_eq!(ss.filter_status_ids, vec![1, 2]);

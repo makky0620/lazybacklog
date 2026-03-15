@@ -133,8 +133,12 @@ async fn run<B: ratatui::backend::Backend>(
                     Screen::IssueList => handle_list_key(key, &mut state, &config, tx.clone()),
                     Screen::IssueDetail => handle_detail_key(key, &mut state),
                     Screen::Filter => handle_filter_key(key, &mut state, &config, tx.clone()),
-                    Screen::ProjectSelect => handle_project_select_key(key, &mut state, &config, tx.clone()),
-                    Screen::StatusFilter => handle_status_filter_key(key, &mut state, &config, tx.clone()),
+                    Screen::ProjectSelect => {
+                        handle_project_select_key(key, &mut state, &config, tx.clone())
+                    }
+                    Screen::StatusFilter => {
+                        handle_status_filter_key(key, &mut state, &config, tx.clone())
+                    }
                 },
                 other => {
                     state.handle_event(other);
@@ -143,7 +147,14 @@ async fn run<B: ratatui::backend::Backend>(
                         let project_id = state.selected_project().map(|p| p.id);
                         let assignee_id = state.filter_assignee_id;
                         let status_ids = state.current_space_state().filter_status_ids.clone();
-                        fetch_issues(&state, &config, tx.clone(), project_id, assignee_id, status_ids);
+                        fetch_issues(
+                            &state,
+                            &config,
+                            tx.clone(),
+                            project_id,
+                            assignee_id,
+                            status_ids,
+                        );
                         state.current_space_state_mut().loading_issues = true;
                     }
                     // Guard 2: project auto-fetch (only on ProjectSelect screen)
@@ -435,7 +446,10 @@ fn fetch_issues(
         .clone();
     tokio::spawn(async move {
         match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
-            Ok(client) => match client.fetch_issues(project_id, assignee_id, &status_ids).await {
+            Ok(client) => match client
+                .fetch_issues(project_id, assignee_id, &status_ids)
+                .await
+            {
                 Ok(issues) => {
                     let _ = tx.send(AppEvent::IssuesLoaded {
                         space: space_name,
@@ -498,11 +512,7 @@ fn fetch_statuses(
     });
 }
 
-fn fetch_projects(
-    state: &AppState,
-    config: &config::Config,
-    tx: mpsc::UnboundedSender<AppEvent>,
-) {
+fn fetch_projects(state: &AppState, config: &config::Config, tx: mpsc::UnboundedSender<AppEvent>) {
     let space_name = state.current_space_name().to_string();
     let space_cfg = config
         .spaces

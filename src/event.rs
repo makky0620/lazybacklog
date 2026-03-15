@@ -11,9 +11,15 @@ pub enum AppEvent {
     /// All users for a space fetched and deduplicated by user.id
     SpaceUsersLoaded { space: String, users: Vec<User> },
     /// Projects for a space fetched
-    ProjectsLoaded { space: String, projects: Vec<Project> },
+    ProjectsLoaded {
+        space: String,
+        projects: Vec<Project>,
+    },
     /// Any API error
     ApiError { space: String, message: String },
     /// Statuses for a space fetched
-    StatusesLoaded { space: String, statuses: Vec<IssueStatus> },
+    StatusesLoaded {
+        space: String,
+        statuses: Vec<IssueStatus>,
+    },
 }

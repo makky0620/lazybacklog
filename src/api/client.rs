@@ -117,7 +117,10 @@ impl BacklogClient {
     pub async fn fetch_statuses(&self, project_id: i64) -> Result<Vec<IssueStatus>> {
         let resp = self
             .http
-            .get(format!("{}/projects/{}/statuses", self.base_url, project_id))
+            .get(format!(
+                "{}/projects/{}/statuses",
+                self.base_url, project_id
+            ))
             .query(&[("apiKey", &self.api_key)])
             .send()
             .await

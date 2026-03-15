@@ -62,8 +62,11 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
 fn render_title(frame: &mut Frame, area: Rect, state: &AppState) {
     let title = format!(" lazybacklog ──── [{}] ", state.current_space_name());
-    let paragraph = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let paragraph = Paragraph::new(title).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
     frame.render_widget(paragraph, area);
 }
 
@@ -80,10 +83,8 @@ fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
         "ALL".to_string()
     };
 
-    let status_text = status_filter::status_filter_text(
-        &space_state.filter_status_ids,
-        &space_state.statuses,
-    );
+    let status_text =
+        status_filter::status_filter_text(&space_state.filter_status_ids, &space_state.statuses);
 
     let text = format!(" Assignee: {}  |  Status: {}", assignee_name, status_text);
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Gray));
@@ -92,8 +93,7 @@ fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn render_help_bar(frame: &mut Frame, area: Rect) {
     let text = " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [q] 終了";
-    let paragraph =
-        Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
+    let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
 }
 
@@ -104,8 +104,7 @@ fn render_status_message(frame: &mut Frame, area: Rect, state: &AppState) {
             height: 1,
             ..area
         };
-        let paragraph =
-            Paragraph::new(msg.as_str()).style(Style::default().fg(Color::Yellow));
+        let paragraph = Paragraph::new(msg.as_str()).style(Style::default().fg(Color::Yellow));
         frame.render_widget(paragraph, status_area);
     }
 }

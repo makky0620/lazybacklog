@@ -1,5 +1,5 @@
-use crate::app::AppState;
 use crate::api::models::IssueStatus;
+use crate::app::AppState;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -22,9 +22,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .map(|s| {
                 let checked = state.status_filter_pending.contains(&s.id);
                 let checkbox = if checked { "[✓]" } else { "[ ]" };
-                ListItem::new(Line::from(vec![
-                    Span::raw(format!("{} {}", checkbox, s.name)),
-                ]))
+                ListItem::new(Line::from(vec![Span::raw(format!(
+                    "{} {}",
+                    checkbox, s.name
+                ))]))
             })
             .collect(),
     };
@@ -45,7 +46,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let mut list_state = ListState::default();
     // Only show cursor when statuses are actually loaded
-    if space_state.statuses.as_ref().map(|s| !s.is_empty()).unwrap_or(false) {
+    if space_state
+        .statuses
+        .as_ref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+    {
         list_state.select(Some(state.status_filter_cursor_idx));
     }
 
@@ -113,10 +119,22 @@ mod tests {
 
     fn make_statuses() -> Vec<IssueStatus> {
         vec![
-            IssueStatus { id: 1, name: "未対応".to_string() },
-            IssueStatus { id: 2, name: "処理中".to_string() },
-            IssueStatus { id: 3, name: "処理済み".to_string() },
-            IssueStatus { id: 4, name: "完了".to_string() },
+            IssueStatus {
+                id: 1,
+                name: "未対応".to_string(),
+            },
+            IssueStatus {
+                id: 2,
+                name: "処理中".to_string(),
+            },
+            IssueStatus {
+                id: 3,
+                name: "処理済み".to_string(),
+            },
+            IssueStatus {
+                id: 4,
+                name: "完了".to_string(),
+            },
         ]
     }
 
