@@ -14,23 +14,53 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let space_state = state.current_space_state();
 
-    let items: Vec<ListItem> = match &space_state.statuses {
-        None => vec![ListItem::new("読み込み中...")],
-        Some(statuses) if statuses.is_empty() => vec![ListItem::new("ステータスなし")],
-        Some(statuses) => statuses
-            .iter()
-            .map(|s| {
-                let checked = state.status_filter_pending.contains(&s.id);
-                let checkbox = if checked { "[✓]" } else { "[ ]" };
-                ListItem::new(Line::from(vec![Span::raw(format!(
-                    "{} {}",
-                    checkbox, s.name
-                ))]))
-            })
-            .collect(),
+    let statuses = match &space_state.statuses {
+        None => {
+            let list = List::new(vec![ListItem::new("読み込み中...")]).block(
+                Block::default()
+                    .title(" ステータスフィルター ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan)),
+            );
+            frame.render_widget(list, popup_area);
+            return;
+        }
+        Some(s) if s.is_empty() => {
+            let list = List::new(vec![ListItem::new("ステータスなし")]).block(
+                Block::default()
+                    .title(" ステータスフィルター ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan)),
+            );
+            frame.render_widget(list, popup_area);
+            return;
+        }
+        Some(s) => s,
     };
 
-    let list = List::new(items)
+    // Filter by search query
+    let display_indices: Vec<usize> = if state.search_query.is_empty() {
+        (0..statuses.len()).collect()
+    } else {
+        state.matching_status_indices()
+    };
+
+    // Position of status_filter_cursor_idx within displayed items
+    let display_selected = display_indices
+        .iter()
+        .position(|&i| i == state.status_filter_cursor_idx);
+
+    let list_items: Vec<ListItem> = display_indices
+        .iter()
+        .map(|&i| {
+            let s = &statuses[i];
+            let checked = state.status_filter_pending.contains(&s.id);
+            let checkbox = if checked { "[✓]" } else { "[ ]" };
+            ListItem::new(Line::from(vec![Span::raw(format!("{} {}", checkbox, s.name))]))
+        })
+        .collect();
+
+    let list = List::new(list_items)
         .block(
             Block::default()
                 .title(" ステータスフィルター ")
@@ -45,14 +75,8 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .highlight_symbol("▶ ");
 
     let mut list_state = ListState::default();
-    // Only show cursor when statuses are actually loaded
-    if space_state
-        .statuses
-        .as_ref()
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
-    {
-        list_state.select(Some(state.status_filter_cursor_idx));
+    if let Some(pos) = display_selected {
+        list_state.select(Some(pos));
     }
 
     frame.render_stateful_widget(list, popup_area, &mut list_state);
@@ -64,8 +88,23 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             width: popup_area.width.saturating_sub(2),
             height: 1,
         };
-        let help = Paragraph::new("[j/k] 移動  [Space] 切替  [Enter] 決定  [Esc] キャンセル")
-            .style(Style::default().fg(Color::DarkGray));
+        let help_text = if state.search_active {
+            format!("/ {}█  ({} matches)", state.search_query, display_indices.len())
+        } else if !state.search_query.is_empty() {
+            format!(
+                "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",
+                state.search_query,
+                display_indices.len()
+            )
+        } else {
+            "[j/k] 移動  [Space] 切替  [Enter] 決定  [/] 検索  [Esc] キャンセル".to_string()
+        };
+        let help_style = if state.search_active {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let help = Paragraph::new(help_text).style(help_style);
         frame.render_widget(help, help_area);
     }
 }
