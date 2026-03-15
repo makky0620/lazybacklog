@@ -328,8 +328,7 @@ fn handle_list_key(
             if !state.search_query.is_empty() {
                 let matches = state.matching_issue_indices();
                 if !matches.is_empty() {
-                    state.search_match_idx =
-                        (state.search_match_idx + 1) % matches.len();
+                    state.search_match_idx = (state.search_match_idx + 1) % matches.len();
                     state.selected_issue_idx = matches[state.search_match_idx];
                 }
             }
@@ -455,8 +454,7 @@ fn handle_filter_key(
             if !state.search_query.is_empty() {
                 let matches = state.matching_user_indices();
                 if !matches.is_empty() {
-                    state.search_match_idx =
-                        (state.search_match_idx + 1) % matches.len();
+                    state.search_match_idx = (state.search_match_idx + 1) % matches.len();
                     state.filter_cursor_idx = matches[state.search_match_idx];
                 }
             }
@@ -530,8 +528,9 @@ fn handle_status_filter_key(
         KeyCode::Char('j') | KeyCode::Down => {
             if !state.search_query.is_empty() {
                 let matches = state.matching_status_indices();
-                if let Some(pos) =
-                    matches.iter().position(|&i| i > state.status_filter_cursor_idx)
+                if let Some(pos) = matches
+                    .iter()
+                    .position(|&i| i > state.status_filter_cursor_idx)
                 {
                     state.status_filter_cursor_idx = matches[pos];
                     state.search_match_idx = pos;
@@ -543,8 +542,9 @@ fn handle_status_filter_key(
         KeyCode::Char('k') | KeyCode::Up => {
             if !state.search_query.is_empty() {
                 let matches = state.matching_status_indices();
-                if let Some(pos) =
-                    matches.iter().rposition(|&i| i < state.status_filter_cursor_idx)
+                if let Some(pos) = matches
+                    .iter()
+                    .rposition(|&i| i < state.status_filter_cursor_idx)
                 {
                     state.status_filter_cursor_idx = matches[pos];
                     state.search_match_idx = pos;
@@ -588,8 +588,7 @@ fn handle_status_filter_key(
             if !state.search_query.is_empty() {
                 let matches = state.matching_status_indices();
                 if !matches.is_empty() {
-                    state.search_match_idx =
-                        (state.search_match_idx + 1) % matches.len();
+                    state.search_match_idx = (state.search_match_idx + 1) % matches.len();
                     state.status_filter_cursor_idx = matches[state.search_match_idx];
                 }
             }

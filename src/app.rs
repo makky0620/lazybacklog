@@ -719,7 +719,11 @@ mod tests {
         let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
-            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("PROJ-3")],
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("PROJ-2"),
+                make_issue("PROJ-3"),
+            ],
         });
         let indices = state.matching_issue_indices();
         assert_eq!(indices, vec![0, 1, 2]);
@@ -731,7 +735,11 @@ mod tests {
         let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
-            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("ABC-1")],
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("PROJ-2"),
+                make_issue("ABC-1"),
+            ],
         });
         state.search_query = "proj".to_string();
         let indices = state.matching_issue_indices();
@@ -795,8 +803,14 @@ mod tests {
         state.handle_event(AppEvent::SpaceUsersLoaded {
             space: "space1".to_string(),
             users: vec![
-                User { id: 1, name: "Alice".to_string() },
-                User { id: 2, name: "Bob".to_string() },
+                User {
+                    id: 1,
+                    name: "Alice".to_string(),
+                },
+                User {
+                    id: 2,
+                    name: "Bob".to_string(),
+                },
             ],
         });
         // 0 = ALL, 1 = Alice, 2 = Bob
@@ -810,7 +824,10 @@ mod tests {
         let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::SpaceUsersLoaded {
             space: "space1".to_string(),
-            users: vec![User { id: 1, name: "Alice".to_string() }],
+            users: vec![User {
+                id: 1,
+                name: "Alice".to_string(),
+            }],
         });
         state.search_query = "all".to_string();
         let indices = state.matching_user_indices();
@@ -824,8 +841,14 @@ mod tests {
         state.handle_event(AppEvent::SpaceUsersLoaded {
             space: "space1".to_string(),
             users: vec![
-                User { id: 1, name: "Alice".to_string() },
-                User { id: 2, name: "Bob".to_string() },
+                User {
+                    id: 1,
+                    name: "Alice".to_string(),
+                },
+                User {
+                    id: 2,
+                    name: "Bob".to_string(),
+                },
             ],
         });
         state.search_query = "alice".to_string();
@@ -883,7 +906,7 @@ mod tests {
             space: "space1".to_string(),
             issues: vec![
                 make_issue("PROJ-1"),
-                make_issue("ABC-1"),  // non-matching
+                make_issue("ABC-1"), // non-matching
                 make_issue("PROJ-2"),
             ],
         });
@@ -915,7 +938,7 @@ mod tests {
             space: "space1".to_string(),
             issues: vec![
                 make_issue("PROJ-1"),
-                make_issue("ABC-1"),  // non-matching
+                make_issue("ABC-1"), // non-matching
                 make_issue("PROJ-2"),
             ],
         });
@@ -982,7 +1005,11 @@ mod tests {
         let mut state = AppState::new(config, false);
         state.handle_event(AppEvent::IssuesLoaded {
             space: "space1".to_string(),
-            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("PROJ-3")],
+            issues: vec![
+                make_issue("PROJ-1"),
+                make_issue("PROJ-2"),
+                make_issue("PROJ-3"),
+            ],
         });
         state.selected_issue_idx = 2;
         state.search_active = true;
