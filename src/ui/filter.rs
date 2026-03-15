@@ -12,19 +12,49 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let space_state = state.current_space_state();
 
-    let items: Vec<ListItem> = if space_state.users_error {
-        vec![ListItem::new("⚠ ユーザー取得失敗")]
-    } else {
-        let mut items = vec![ListItem::new("ALL (フィルターなし)")];
-        if let Some(users) = &space_state.users {
-            for user in users {
-                items.push(ListItem::new(user.name.clone()));
-            }
+    if space_state.users_error {
+        let list = List::new(vec![ListItem::new("⚠ ユーザー取得失敗")]).block(
+            Block::default()
+                .title(" Assigneeフィルター ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
+        frame.render_widget(list, popup_area);
+        return;
+    }
+
+    // Build full item list: [(full_list_idx, display_text)]
+    let mut all_items: Vec<(usize, String)> = vec![(0, "ALL (フィルターなし)".to_string())];
+    if let Some(users) = &space_state.users {
+        for (i, user) in users.iter().enumerate() {
+            all_items.push((i + 1, user.name.clone()));
         }
-        items
+    }
+
+    // Filter by search query
+    let display_items: Vec<(usize, &str)> = if state.search_query.is_empty() {
+        all_items.iter().map(|(i, s)| (*i, s.as_str())).collect()
+    } else {
+        let match_indices = state.matching_user_indices();
+        all_items
+            .iter()
+            .filter(|(i, _)| match_indices.contains(i))
+            .map(|(i, s)| (*i, s.as_str()))
+            .collect()
     };
 
-    let list = List::new(items)
+    // Position of filter_cursor_idx within displayed items
+    let display_selected = display_items
+        .iter()
+        .position(|(i, _)| *i == state.filter_cursor_idx);
+
+    let list_items: Vec<ListItem> = display_items
+        .iter()
+        .map(|(_, text)| ListItem::new(*text))
+        .collect();
+
+    // Reserve bottom line for help/search bar (2 lines from bottom = inside border)
+    let list = List::new(list_items)
         .block(
             Block::default()
                 .title(" Assigneeフィルター ")
@@ -39,7 +69,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .highlight_symbol("▶ ");
 
     let mut list_state = ListState::default();
-    list_state.select(Some(state.filter_cursor_idx));
+    if let Some(pos) = display_selected {
+        list_state.select(Some(pos));
+    }
 
     frame.render_stateful_widget(list, popup_area, &mut list_state);
 
@@ -50,8 +82,23 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             width: popup_area.width.saturating_sub(2),
             height: 1,
         };
-        let help = Paragraph::new("[Enter] 選択  [Esc] キャンセル")
-            .style(Style::default().fg(Color::DarkGray));
+        let help_text = if state.search_active {
+            format!("/ {}█  ({} matches)", state.search_query, display_items.len())
+        } else if !state.search_query.is_empty() {
+            format!(
+                "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",
+                state.search_query,
+                display_items.len()
+            )
+        } else {
+            "[Enter] 選択  [/] 検索  [Esc] キャンセル".to_string()
+        };
+        let help_style = if state.search_active {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let help = Paragraph::new(help_text).style(help_style);
         frame.render_widget(help, help_area);
     }
 }
