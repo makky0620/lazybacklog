@@ -83,7 +83,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             height: 1,
         };
         let help_text = if state.search_active {
-            format!("/ {}█  ({} matches)", state.search_query, display_items.len())
+            format!(
+                "/ {}█  ({} matches)",
+                state.search_query,
+                display_items.len()
+            )
         } else if !state.search_query.is_empty() {
             format!(
                 "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",

@@ -39,7 +39,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     render_title(frame, chunks[0], state);
     render_filter_bar(frame, chunks[1], state);
     issue_list::render(frame, chunks[2], state);
-    render_help_bar(frame, chunks[3]);
+    render_help_bar(frame, chunks[3], state);
 
     match state.screen {
         Screen::IssueDetail => {
@@ -91,8 +91,14 @@ fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(paragraph, area);
 }
 
-fn render_help_bar(frame: &mut Frame, area: Rect) {
-    let text = " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [q] 終了";
+fn render_help_bar(frame: &mut Frame, area: Rect, state: &AppState) {
+    let text = if state.search_active {
+        " [Enter] 確定  [Esc] キャンセル"
+    } else if !state.search_query.is_empty() {
+        " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [n/N] 次/前のマッチ  [q] 終了"
+    } else {
+        " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [/] 検索  [q] 終了"
+    };
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
 }

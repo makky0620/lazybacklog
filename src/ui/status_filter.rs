@@ -56,7 +56,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             let s = &statuses[i];
             let checked = state.status_filter_pending.contains(&s.id);
             let checkbox = if checked { "[✓]" } else { "[ ]" };
-            ListItem::new(Line::from(vec![Span::raw(format!("{} {}", checkbox, s.name))]))
+            ListItem::new(Line::from(vec![Span::raw(format!(
+                "{} {}",
+                checkbox, s.name
+            ))]))
         })
         .collect();
 
@@ -89,7 +92,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             height: 1,
         };
         let help_text = if state.search_active {
-            format!("/ {}█  ({} matches)", state.search_query, display_indices.len())
+            format!(
+                "/ {}█  ({} matches)",
+                state.search_query,
+                display_indices.len()
+            )
         } else if !state.search_query.is_empty() {
             format!(
                 "/ {}  ({} matches)  [n/N] 移動  [Esc] 解除",
