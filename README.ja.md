@@ -6,6 +6,8 @@
 
 ## デモ
 
+![Demo](demo/demo.gif)
+
 Backlog アカウントなしで試せます:
 
 ```bash

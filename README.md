@@ -6,6 +6,8 @@ A [lazygit](https://github.com/jesseduffield/lazygit)-inspired Terminal UI (TUI)
 
 ## Demo
 
+![Demo](demo/demo.gif)
+
 Try it without a Backlog account:
 
 ```bash
