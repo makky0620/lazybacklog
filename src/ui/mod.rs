@@ -11,6 +11,7 @@ pub mod filter;
 pub mod issue_detail;
 pub mod issue_list;
 pub mod project_select;
+pub mod status_filter;
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
@@ -51,7 +52,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         }
         Screen::IssueList => {}
         Screen::ProjectSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
-        Screen::StatusFilter => {} // TODO: implement in Task 7-8
+        Screen::StatusFilter => {
+            status_filter::render(frame, area, state);
+        }
     }
 
     render_status_message(frame, area, state);
@@ -77,13 +80,18 @@ fn render_filter_bar(frame: &mut Frame, area: Rect, state: &AppState) {
         "ALL".to_string()
     };
 
-    let text = format!(" Assignee: {}", assignee_name);
+    let status_text = status_filter::status_filter_text(
+        &space_state.filter_status_ids,
+        &space_state.statuses,
+    );
+
+    let text = format!(" Assignee: {}  |  Status: {}", assignee_name, status_text);
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Gray));
     frame.render_widget(paragraph, area);
 }
 
 fn render_help_bar(frame: &mut Frame, area: Rect) {
-    let text = " [j/k] 移動  [Enter] 詳細  [f] フィルター  [r] 更新  [[] []] スペース切替  [q] 終了";
+    let text = " [j/k] 移動  [Enter] 詳細  [f] Assignee  [s] Status  [r] 更新  [[] []] スペース切替  [q] 終了";
     let paragraph =
         Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);
