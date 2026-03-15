@@ -2,6 +2,11 @@
 name = "lazybacklog"
 version = "0.1.0"
 edition = "2021"
+description = "A lazygit-inspired TUI for Nulab's Backlog project management service"
+license = "MIT"
+repository = "https://github.com/makky0620/lazybacklog"
+keywords = ["backlog", "tui", "terminal", "nulab"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 ratatui = "0.28"
