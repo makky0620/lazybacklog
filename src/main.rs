@@ -85,52 +85,65 @@ async fn run<B: ratatui::backend::Backend>(
     }
 
     // Spawn per-space tasks: fetch projects (for ProjectsLoaded) and users.
-    for space in &config.spaces {
-        let space_name = space.name.clone();
-        let host = space.host.clone();
-        let api_key = space.api_key.clone();
-        let tx = tx.clone();
-        tokio::spawn(async move {
-            match api::client::BacklogClient::new(host, api_key) {
-                Ok(client) => match client.fetch_projects().await {
-                    Ok(projects) => {
-                        // Send ProjectsLoaded for every space.
-                        // Clone into the event; borrow original for user iteration below.
-                        let _ = tx.send(AppEvent::ProjectsLoaded {
-                            space: space_name.clone(),
-                            projects: projects.clone(),
-                        });
-                        // Fetch users for each project (iterate by reference, not by move).
-                        let mut all_users: Vec<api::models::User> = Vec::new();
-                        for project in &projects {
-                            if let Ok(users) = client.fetch_project_users(project.id).await {
-                                for user in users {
-                                    if !all_users.iter().any(|u| u.id == user.id) {
-                                        all_users.push(user);
+    if demo_mode {
+        for space in &config.spaces {
+            let _ = tx.send(AppEvent::ProjectsLoaded {
+                space: space.name.clone(),
+                projects: mock::projects(),
+            });
+            let _ = tx.send(AppEvent::SpaceUsersLoaded {
+                space: space.name.clone(),
+                users: mock::users(),
+            });
+        }
+    } else {
+        for space in &config.spaces {
+            let space_name = space.name.clone();
+            let host = space.host.clone();
+            let api_key = space.api_key.clone();
+            let tx = tx.clone();
+            tokio::spawn(async move {
+                match api::client::BacklogClient::new(host, api_key) {
+                    Ok(client) => match client.fetch_projects().await {
+                        Ok(projects) => {
+                            // Send ProjectsLoaded for every space.
+                            // Clone into the event; borrow original for user iteration below.
+                            let _ = tx.send(AppEvent::ProjectsLoaded {
+                                space: space_name.clone(),
+                                projects: projects.clone(),
+                            });
+                            // Fetch users for each project (iterate by reference, not by move).
+                            let mut all_users: Vec<api::models::User> = Vec::new();
+                            for project in &projects {
+                                if let Ok(users) = client.fetch_project_users(project.id).await {
+                                    for user in users {
+                                        if !all_users.iter().any(|u| u.id == user.id) {
+                                            all_users.push(user);
+                                        }
                                     }
                                 }
                             }
+                            let _ = tx.send(AppEvent::SpaceUsersLoaded {
+                                space: space_name,
+                                users: all_users,
+                            });
                         }
-                        let _ = tx.send(AppEvent::SpaceUsersLoaded {
-                            space: space_name,
-                            users: all_users,
-                        });
-                    }
+                        Err(e) => {
+                            let _ = tx.send(AppEvent::ApiError {
+                                space: space_name,
+                                message: e.to_string(),
+                            });
+                        }
+                    },
                     Err(e) => {
                         let _ = tx.send(AppEvent::ApiError {
                             space: space_name,
                             message: e.to_string(),
                         });
                     }
-                },
-                Err(e) => {
-                    let _ = tx.send(AppEvent::ApiError {
-                        space: space_name,
-                        message: e.to_string(),
-                    });
                 }
-            }
-        });
+            });
+        }
     }
     // No initial fetch_issues — user selects project first.
 
