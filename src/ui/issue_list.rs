@@ -26,9 +26,17 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         }
     };
 
-    let rows: Vec<Row> = issues
+    // Filter issues by search query (rendering only — full-list indices preserved)
+    let display_indices: Vec<usize> = if state.search_query.is_empty() {
+        (0..issues.len()).collect()
+    } else {
+        state.matching_issue_indices()
+    };
+
+    let rows: Vec<Row> = display_indices
         .iter()
-        .map(|issue| {
+        .map(|&i| {
+            let issue = &issues[i];
             let assignee = issue
                 .assignee
                 .as_ref()
@@ -43,13 +51,27 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect();
 
-    let footer_msg = if issues.len() >= 100 {
+    // Position of selected_issue_idx within the displayed (filtered) rows
+    let display_selected = display_indices
+        .iter()
+        .position(|&i| i == state.selected_issue_idx);
+
+    // Footer: search bar or issue count
+    let footer_text = if state.search_active || !state.search_query.is_empty() {
+        let cursor = if state.search_active { "█" } else { "" };
+        format!(
+            "/ {}{}  ({} matches)",
+            state.search_query,
+            cursor,
+            display_indices.len()
+        )
+    } else if issues.len() >= 100 {
         format!("(表示: {}件 / 上限100件)", issues.len())
     } else {
         format!("({}件)", issues.len())
     };
 
-    // Reserve last line for count
+    // Reserve last line for footer
     let table_area = Rect {
         height: area.height.saturating_sub(1),
         ..area
@@ -80,12 +102,17 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .highlight_symbol("▶ ");
 
     let mut table_state = TableState::default();
-    if !issues.is_empty() {
-        table_state.select(Some(state.selected_issue_idx));
+    if let Some(pos) = display_selected {
+        table_state.select(Some(pos));
     }
 
     frame.render_stateful_widget(table, table_area, &mut table_state);
 
-    let footer = Paragraph::new(footer_msg).style(Style::default().fg(Color::DarkGray));
+    let footer_style = if state.search_active {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    let footer = Paragraph::new(footer_text).style(footer_style);
     frame.render_widget(footer, footer_area);
 }
