@@ -369,15 +369,60 @@ fn handle_filter_key(
         .unwrap_or(0);
     let total = user_count + 1; // +1 for "ALL"
 
+    // Search mode: intercept all keys for query editing
+    if state.search_active {
+        match key.code {
+            KeyCode::Char(c) => {
+                state.search_query.push(c);
+                state.search_match_idx = 0;
+                let matches = state.matching_user_indices();
+                if let Some(&first) = matches.first() {
+                    state.filter_cursor_idx = first;
+                }
+            }
+            KeyCode::Backspace => {
+                state.search_query.pop();
+                if !state.search_query.is_empty() {
+                    state.search_match_idx = 0;
+                    let matches = state.matching_user_indices();
+                    if let Some(&first) = matches.first() {
+                        state.filter_cursor_idx = first;
+                    }
+                }
+            }
+            KeyCode::Enter => {
+                state.search_active = false;
+            }
+            KeyCode::Esc => {
+                state.clear_search();
+                state.screen = Screen::IssueList;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => state.screen = Screen::IssueList,
         KeyCode::Char('j') | KeyCode::Down => {
-            if state.filter_cursor_idx + 1 < total {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_user_indices();
+                if let Some(pos) = matches.iter().position(|&i| i > state.filter_cursor_idx) {
+                    state.filter_cursor_idx = matches[pos];
+                    state.search_match_idx = pos;
+                }
+            } else if state.filter_cursor_idx + 1 < total {
                 state.filter_cursor_idx += 1;
             }
         }
         KeyCode::Char('k') | KeyCode::Up => {
-            if state.filter_cursor_idx > 0 {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_user_indices();
+                if let Some(pos) = matches.iter().rposition(|&i| i < state.filter_cursor_idx) {
+                    state.filter_cursor_idx = matches[pos];
+                    state.search_match_idx = pos;
+                }
+            } else if state.filter_cursor_idx > 0 {
                 state.filter_cursor_idx -= 1;
             }
         }
@@ -392,6 +437,7 @@ fn handle_filter_key(
                     }
                 }
             }
+            state.clear_search();
             state.screen = Screen::IssueList;
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
@@ -399,6 +445,31 @@ fn handle_filter_key(
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
             fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
+        }
+        KeyCode::Char('/') => {
+            state.search_active = true;
+            state.search_query.clear();
+            state.search_match_idx = 0;
+        }
+        KeyCode::Char('n') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_user_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + 1) % matches.len();
+                    state.filter_cursor_idx = matches[state.search_match_idx];
+                }
+            }
+        }
+        KeyCode::Char('N') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_user_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + matches.len() - 1) % matches.len();
+                    state.filter_cursor_idx = matches[state.search_match_idx];
+                }
+            }
         }
         _ => {}
     }
@@ -417,18 +488,68 @@ fn handle_status_filter_key(
         .map(|s| s.len())
         .unwrap_or(0);
 
+    // Search mode: intercept all keys for query editing
+    if state.search_active {
+        match key.code {
+            KeyCode::Char(c) => {
+                state.search_query.push(c);
+                state.search_match_idx = 0;
+                let matches = state.matching_status_indices();
+                if let Some(&first) = matches.first() {
+                    state.status_filter_cursor_idx = first;
+                }
+            }
+            KeyCode::Backspace => {
+                state.search_query.pop();
+                if !state.search_query.is_empty() {
+                    state.search_match_idx = 0;
+                    let matches = state.matching_status_indices();
+                    if let Some(&first) = matches.first() {
+                        state.status_filter_cursor_idx = first;
+                    }
+                }
+            }
+            KeyCode::Enter => {
+                state.search_active = false;
+            }
+            KeyCode::Esc => {
+                state.status_filter_pending = vec![];
+                state.clear_search();
+                state.screen = Screen::IssueList;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => {
             state.status_filter_pending = vec![];
             state.screen = Screen::IssueList;
         }
         KeyCode::Char('j') | KeyCode::Down => {
-            if status_count > 0 && state.status_filter_cursor_idx + 1 < status_count {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_status_indices();
+                if let Some(pos) =
+                    matches.iter().position(|&i| i > state.status_filter_cursor_idx)
+                {
+                    state.status_filter_cursor_idx = matches[pos];
+                    state.search_match_idx = pos;
+                }
+            } else if status_count > 0 && state.status_filter_cursor_idx + 1 < status_count {
                 state.status_filter_cursor_idx += 1;
             }
         }
         KeyCode::Char('k') | KeyCode::Up => {
-            if state.status_filter_cursor_idx > 0 {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_status_indices();
+                if let Some(pos) =
+                    matches.iter().rposition(|&i| i < state.status_filter_cursor_idx)
+                {
+                    state.status_filter_cursor_idx = matches[pos];
+                    state.search_match_idx = pos;
+                }
+            } else if state.status_filter_cursor_idx > 0 {
                 state.status_filter_cursor_idx -= 1;
             }
         }
@@ -449,6 +570,7 @@ fn handle_status_filter_key(
             let pending = state.status_filter_pending.clone();
             state.current_space_state_mut().filter_status_ids = pending;
             state.status_filter_pending = vec![];
+            state.clear_search();
             state.screen = Screen::IssueList;
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
@@ -456,6 +578,31 @@ fn handle_status_filter_key(
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
             fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
+        }
+        KeyCode::Char('/') => {
+            state.search_active = true;
+            state.search_query.clear();
+            state.search_match_idx = 0;
+        }
+        KeyCode::Char('n') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_status_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + 1) % matches.len();
+                    state.status_filter_cursor_idx = matches[state.search_match_idx];
+                }
+            }
+        }
+        KeyCode::Char('N') => {
+            if !state.search_query.is_empty() {
+                let matches = state.matching_status_indices();
+                if !matches.is_empty() {
+                    state.search_match_idx =
+                        (state.search_match_idx + matches.len() - 1) % matches.len();
+                    state.status_filter_cursor_idx = matches[state.search_match_idx];
+                }
+            }
         }
         _ => {}
     }
