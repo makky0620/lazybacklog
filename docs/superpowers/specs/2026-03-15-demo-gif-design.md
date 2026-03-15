@@ -29,6 +29,8 @@ demo/
 
 ## demo.tape Script
 
+**Pre-requisite:** Run `cargo build --release` before recording so the binary is already compiled. Use `./target/release/lazybacklog --demo` in the tape script to avoid compile wait time.
+
 **Terminal settings:**
 - Output: `demo/demo.gif`
 - Width: 220 columns, Height: 50 rows
@@ -39,20 +41,25 @@ demo/
 
 | Step | Action | VHS directive |
 |------|--------|---------------|
-| Launch app | `cargo run -- --demo` | `Type`, `Enter` |
-| Wait for project select | — | `Sleep 3s` |
-| Select project | `Enter` | `Enter`, `Sleep 1s` |
-| Browse issues | `j` × 3 | `Down` × 3, `Sleep 500ms` each |
+| Launch app | `./target/release/lazybacklog --demo` | `Type "..."`, `Enter` |
+| Wait for project select | — | `Sleep 1s` |
+| Select project | `Enter` | `Enter`, `Sleep 500ms` |
+| Browse issues | `j` × 3 (vi-style) | `Type j` × 3, `Sleep 300ms` each |
 | Open issue detail | `Enter` | `Enter`, `Sleep 500ms` |
 | Close detail | `Esc` | `Escape`, `Sleep 500ms` |
-| Start search | `/` | `Type /` |
-| Type query | e.g. `login` | `Type "login"`, `Sleep 500ms` |
-| Show match | — | `Sleep 1s` |
-| Quit | `q` | `Ctrl+C` or `Type q` |
+| Start search | `/` | `Type /`, `Sleep 300ms` |
+| Type query | `login` (matches mock issue) | `Type "login"`, `Sleep 500ms` |
+| Show match highlight | — | `Sleep 1s` |
+| Exit search mode | `Esc` | `Escape`, `Sleep 300ms` |
+| Quit | `q` | `Type q` |
+
+Note: `Escape` before `q` is required — if search mode is still active, `q` appends to the query instead of quitting.
+
+Note: A `Sleep 300ms` between `Type /` and `Type "login"` is required to let the UI re-render into search mode before characters arrive.
 
 ## README Integration
 
-Add to `README.md` and `README.ja.md` under the existing `## Demo` section:
+Insert `![Demo](demo/demo.gif)` *above* the existing `cargo run -- --demo` block in both `README.md` and `README.ja.md`. Do not replace existing content.
 
 ```markdown
 ## Demo
@@ -60,11 +67,16 @@ Add to `README.md` and `README.ja.md` under the existing `## Demo` section:
 ![Demo](demo/demo.gif)
 
 Try it without a Backlog account:
-...
+
+```bash
+cargo run -- --demo
+```
 ```
 
 ## Tooling
 
 Install VHS: `brew install vhs`
+
+Pre-build binary: `cargo build --release`
 
 Regenerate GIF: `vhs demo/demo.tape`
