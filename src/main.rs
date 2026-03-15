@@ -142,7 +142,8 @@ async fn run<B: ratatui::backend::Backend>(
                     if state.screen == Screen::IssueList && state.needs_issue_fetch() {
                         let project_id = state.selected_project().map(|p| p.id);
                         let assignee_id = state.filter_assignee_id;
-                        fetch_issues(&state, &config, tx.clone(), project_id, assignee_id, vec![]);
+                        let status_ids = state.current_space_state().filter_status_ids.clone();
+                        fetch_issues(&state, &config, tx.clone(), project_id, assignee_id, status_ids);
                         state.current_space_state_mut().loading_issues = true;
                     }
                     // Guard 2: project auto-fetch (only on ProjectSelect screen)
@@ -229,9 +230,10 @@ fn handle_list_key(
         KeyCode::Char('r') => {
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
+            let status_ids = state.current_space_state().filter_status_ids.clone();
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
-            fetch_issues(state, config, tx, project_id, assignee_id, vec![]);
+            fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
         }
         KeyCode::Char(']') => {
             state.switch_space_next();
@@ -290,9 +292,10 @@ fn handle_filter_key(
             state.screen = Screen::IssueList;
             let project_id = state.selected_project().map(|p| p.id);
             let assignee_id = state.filter_assignee_id;
+            let status_ids = state.current_space_state().filter_status_ids.clone();
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
-            fetch_issues(state, config, tx, project_id, assignee_id, vec![]);
+            fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
         }
         _ => {}
     }
@@ -346,11 +349,16 @@ fn handle_project_select_key(
                 .cloned();
             if let Some(project) = project {
                 let project_id = project.id;
+                // Reset status + issue state for new project.
+                // Use separate short-lived borrows to avoid borrow conflict.
                 state.current_space_state_mut().selected_project = Some(project);
-                state.screen = Screen::IssueList;
+                state.current_space_state_mut().statuses = None;
+                state.current_space_state_mut().filter_status_ids = vec![];
                 state.current_space_state_mut().issues = None;
-                state.current_space_state_mut().loading_issues = true;
-                fetch_issues(state, config, tx, Some(project_id), state.filter_assignee_id, vec![]);
+                state.current_space_state_mut().loading_statuses = true;
+                state.screen = Screen::IssueList;
+                // Fetch statuses first; issues fetched automatically after StatusesLoaded
+                fetch_statuses(state, config, tx, project_id);
             }
         }
         _ => {}
@@ -379,6 +387,45 @@ fn fetch_issues(
                     let _ = tx.send(AppEvent::IssuesLoaded {
                         space: space_name,
                         issues,
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::ApiError {
+                        space: space_name,
+                        message: e.to_string(),
+                    });
+                }
+            },
+            Err(e) => {
+                let _ = tx.send(AppEvent::ApiError {
+                    space: space_name,
+                    message: e.to_string(),
+                });
+            }
+        }
+    });
+}
+
+fn fetch_statuses(
+    state: &AppState,
+    config: &config::Config,
+    tx: mpsc::UnboundedSender<AppEvent>,
+    project_id: i64,
+) {
+    let space_name = state.current_space_name().to_string();
+    let space_cfg = config
+        .spaces
+        .iter()
+        .find(|s| s.name == space_name)
+        .unwrap()
+        .clone();
+    tokio::spawn(async move {
+        match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
+            Ok(client) => match client.fetch_statuses(project_id).await {
+                Ok(statuses) => {
+                    let _ = tx.send(AppEvent::StatusesLoaded {
+                        space: space_name,
+                        statuses,
                     });
                 }
                 Err(e) => {
