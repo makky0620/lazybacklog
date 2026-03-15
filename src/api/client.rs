@@ -28,6 +28,7 @@ impl BacklogClient {
         &self,
         project_id: Option<i64>,
         assignee_id: Option<i64>,
+        status_ids: &[i64],
     ) -> Result<Vec<Issue>> {
         let mut params: Vec<(&str, String)> = vec![
             ("apiKey", self.api_key.clone()),
@@ -38,6 +39,9 @@ impl BacklogClient {
         }
         if let Some(id) = assignee_id {
             params.push(("assigneeId[]", id.to_string()));
+        }
+        for id in status_ids {
+            params.push(("statusId[]", id.to_string()));
         }
         let resp = self
             .http
@@ -166,7 +170,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let issues = client.fetch_issues(None, None).await.unwrap();
+        let issues = client.fetch_issues(None, None, &[]).await.unwrap();
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].issue_key, "PROJ-1");
         assert_eq!(issues[0].summary, "Test issue");
@@ -189,7 +193,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let issues = client.fetch_issues(None, Some(42)).await.unwrap();
+        let issues = client.fetch_issues(None, Some(42), &[]).await.unwrap();
         assert_eq!(issues.len(), 0);
     }
 
@@ -204,7 +208,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let issues = client.fetch_issues(Some(100), None).await.unwrap();
+        let issues = client.fetch_issues(Some(100), None, &[]).await.unwrap();
         assert_eq!(issues.len(), 0);
     }
 
@@ -218,7 +222,7 @@ mod tests {
             .await;
 
         let client = make_client(&server).await;
-        let err = client.fetch_issues(None, None).await.unwrap_err();
+        let err = client.fetch_issues(None, None, &[]).await.unwrap_err();
         assert!(err.to_string().contains("401 Unauthorized"));
     }
 
@@ -330,5 +334,51 @@ mod tests {
         let client = make_client(&server).await;
         let err = client.fetch_statuses(100).await.unwrap_err();
         assert!(err.to_string().contains("error"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_issues_with_status_filter() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues"))
+            .and(query_param("statusId[]", "1"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let issues = client.fetch_issues(None, None, &[1]).await.unwrap();
+        assert_eq!(issues.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_issues_with_multiple_status_ids() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues"))
+            .and(query_param("statusId[]", "1"))
+            .and(query_param("statusId[]", "2"))
+            .and(query_param("statusId[]", "3"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let issues = client.fetch_issues(None, None, &[1, 2, 3]).await.unwrap();
+        assert_eq!(issues.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_issues_with_empty_status_ids_sends_no_status_param() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let issues = client.fetch_issues(None, None, &[]).await.unwrap();
+        assert_eq!(issues.len(), 0);
     }
 }
