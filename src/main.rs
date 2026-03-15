@@ -209,6 +209,12 @@ fn handle_list_key(
         KeyCode::Char('j') | KeyCode::Down => state.navigate_down(),
         KeyCode::Char('k') | KeyCode::Up => state.navigate_up(),
         KeyCode::Enter => {
+            if state.demo_mode {
+                if let Some(issue) = state.selected_issue().cloned() {
+                    let _ = tx.send(AppEvent::IssueDetailLoaded(issue));
+                }
+                return;
+            }
             if let Some(issue) = state.selected_issue() {
                 let issue_key = issue.issue_key.clone();
                 let space_name = state.current_space_name().to_string();
@@ -460,6 +466,14 @@ fn fetch_issues(
     assignee_id: Option<i64>,
     status_ids: Vec<i64>,
 ) {
+    if state.demo_mode {
+        let space = state.current_space_name().to_string();
+        let _ = tx.send(AppEvent::IssuesLoaded {
+            space,
+            issues: mock::issues(),
+        });
+        return;
+    }
     let space_name = state.current_space_name().to_string();
     let space_cfg = config
         .spaces
@@ -502,6 +516,14 @@ fn fetch_statuses(
     tx: mpsc::UnboundedSender<AppEvent>,
     project_id: i64,
 ) {
+    if state.demo_mode {
+        let space = state.current_space_name().to_string();
+        let _ = tx.send(AppEvent::StatusesLoaded {
+            space,
+            statuses: mock::statuses(),
+        });
+        return;
+    }
     let space_name = state.current_space_name().to_string();
     let space_cfg = config
         .spaces
@@ -536,6 +558,14 @@ fn fetch_statuses(
 }
 
 fn fetch_projects(state: &AppState, config: &config::Config, tx: mpsc::UnboundedSender<AppEvent>) {
+    if state.demo_mode {
+        let space = state.current_space_name().to_string();
+        let _ = tx.send(AppEvent::ProjectsLoaded {
+            space,
+            projects: mock::projects(),
+        });
+        return;
+    }
     let space_name = state.current_space_name().to_string();
     let space_cfg = config
         .spaces
