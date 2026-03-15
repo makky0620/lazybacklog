@@ -42,6 +42,9 @@ pub struct AppState {
     pub should_quit: bool,
     pub status_filter_cursor_idx: usize,
     pub status_filter_pending: Vec<i64>,
+    pub search_active: bool,
+    pub search_query: String,
+    pub search_match_idx: usize,
 }
 
 impl AppState {
@@ -70,6 +73,9 @@ impl AppState {
             should_quit: false,
             status_filter_cursor_idx: 0,
             status_filter_pending: vec![],
+            search_active: false,
+            search_query: String::new(),
+            search_match_idx: 0,
         }
     }
 
@@ -148,6 +154,36 @@ impl AppState {
         self.project_cursor_idx = 0;
         self.filter_assignee_id = None;
         self.screen = Screen::ProjectSelect;
+    }
+
+    pub fn clear_search(&mut self) {
+        self.search_active = false;
+        self.search_query.clear();
+        self.search_match_idx = 0;
+        self.selected_issue_idx = 0;
+        self.filter_cursor_idx = 0;
+        self.status_filter_cursor_idx = 0;
+    }
+
+    /// Returns full-list indices of issues matching the current search_query.
+    /// Returns all indices when query is empty.
+    pub fn matching_issue_indices(&self) -> Vec<usize> {
+        let Some(issues) = self.current_space_state().issues.as_ref() else {
+            return vec![];
+        };
+        if self.search_query.is_empty() {
+            return (0..issues.len()).collect();
+        }
+        let query = self.search_query.to_lowercase();
+        issues
+            .iter()
+            .enumerate()
+            .filter(|(_, issue)| {
+                issue.issue_key.to_lowercase().contains(&query)
+                    || issue.summary.to_lowercase().contains(&query)
+            })
+            .map(|(i, _)| i)
+            .collect()
     }
 
     pub fn handle_event(&mut self, event: AppEvent) {
@@ -595,5 +631,97 @@ mod tests {
         let state = AppState::new(config, false);
         assert_eq!(state.status_filter_cursor_idx, 0);
         assert!(state.status_filter_pending.is_empty());
+    }
+
+    #[test]
+    fn test_clear_search_resets_all() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.search_active = true;
+        state.search_query = "foo".to_string();
+        state.search_match_idx = 2;
+        state.selected_issue_idx = 5;
+        state.clear_search();
+        assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
+        assert_eq!(state.search_match_idx, 0);
+        assert_eq!(state.selected_issue_idx, 0);
+        assert_eq!(state.filter_cursor_idx, 0);
+        assert_eq!(state.status_filter_cursor_idx, 0);
+    }
+
+    #[test]
+    fn test_matching_issue_indices_empty_query_returns_all() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("PROJ-3")],
+        });
+        let indices = state.matching_issue_indices();
+        assert_eq!(indices, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_matching_issue_indices_filters_by_key() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1"), make_issue("PROJ-2"), make_issue("ABC-1")],
+        });
+        state.search_query = "proj".to_string();
+        let indices = state.matching_issue_indices();
+        assert_eq!(indices, vec![0, 1]);
+    }
+
+    #[test]
+    fn test_matching_issue_indices_filters_by_summary() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        // make_issue() sets summary = "Summary of <key>"
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1"), make_issue("ABC-1")],
+        });
+        state.search_query = "summary of proj".to_string();
+        let indices = state.matching_issue_indices();
+        assert_eq!(indices, vec![0]);
+    }
+
+    #[test]
+    fn test_matching_issue_indices_case_insensitive() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1")],
+        });
+        state.search_query = "PROJ".to_string();
+        let indices = state.matching_issue_indices();
+        assert_eq!(indices, vec![0]);
+    }
+
+    #[test]
+    fn test_matching_issue_indices_no_match_returns_empty() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.handle_event(AppEvent::IssuesLoaded {
+            space: "space1".to_string(),
+            issues: vec![make_issue("PROJ-1")],
+        });
+        state.search_query = "zzz".to_string();
+        let indices = state.matching_issue_indices();
+        assert!(indices.is_empty());
+    }
+
+    #[test]
+    fn test_matching_issue_indices_no_issues_returns_empty() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.search_query = "proj".to_string();
+        // No IssuesLoaded event — issues is None
+        let indices = state.matching_issue_indices();
+        assert!(indices.is_empty());
     }
 }
