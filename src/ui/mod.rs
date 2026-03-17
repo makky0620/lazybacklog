@@ -11,10 +11,17 @@ pub mod filter;
 pub mod issue_detail;
 pub mod issue_list;
 pub mod project_select;
+pub mod space_select;
 pub mod status_filter;
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
+
+    if state.screen == Screen::SpaceSelect {
+        space_select::render(frame, area, state);
+        render_status_message(frame, area, state);
+        return;
+    }
 
     if state.screen == Screen::ProjectSelect {
         // Full-screen takeover: render project select layout first,
@@ -52,6 +59,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         }
         Screen::IssueList => {}
         Screen::ProjectSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
+        Screen::SpaceSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
         Screen::StatusFilter => {
             status_filter::render(frame, area, state);
         }
@@ -95,9 +103,9 @@ fn render_help_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     let text = if state.search_active {
         " [Enter] Confirm  [Esc] Cancel"
     } else if !state.search_query.is_empty() {
-        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [[] []] Switch Space  [n/N] Next/Prev Match  [q] Quit"
+        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [n/N] Next/Prev Match  [Esc] Back  [q] Quit"
     } else {
-        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [[] []] Switch Space  [/] Search  [q] Quit"
+        " [j/k] Move  [Enter] Detail  [f] Assignee  [s] Status  [r] Refresh  [/] Search  [Esc] Back  [q] Quit"
     };
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(paragraph, area);

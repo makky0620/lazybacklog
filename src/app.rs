@@ -6,6 +6,7 @@ use crate::event::AppEvent;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
+    SpaceSelect,      // NEW — initial screen
     ProjectSelect,
     IssueList,
     IssueDetail,
@@ -31,6 +32,7 @@ pub struct AppState {
     pub demo_mode: bool,
     pub config: Config,
     pub current_space_idx: usize,
+    pub space_cursor_idx: usize,
     pub spaces: HashMap<String, SpaceState>,
     pub selected_issue_idx: usize,
     pub detail_issue: Option<Issue>,
@@ -62,13 +64,14 @@ impl AppState {
             demo_mode,
             config,
             current_space_idx,
+            space_cursor_idx: current_space_idx,
             spaces,
             selected_issue_idx: 0,
             detail_issue: None,
             filter_assignee_id: None,
             filter_cursor_idx: 0,
             project_cursor_idx: 0,
-            screen: Screen::ProjectSelect,
+            screen: Screen::SpaceSelect,
             status_message: None,
             should_quit: false,
             status_filter_cursor_idx: 0,
@@ -153,27 +156,13 @@ impl AppState {
         }
     }
 
-    pub fn switch_space_next(&mut self) {
+    pub fn select_space(&mut self, idx: usize) {
         self.clear_search();
-        self.current_space_idx = (self.current_space_idx + 1) % self.config.spaces.len();
         self.selected_issue_idx = 0;
         self.detail_issue = None;
         self.project_cursor_idx = 0;
         self.filter_assignee_id = None;
-        self.screen = Screen::ProjectSelect;
-    }
-
-    pub fn switch_space_prev(&mut self) {
-        self.clear_search();
-        if self.current_space_idx == 0 {
-            self.current_space_idx = self.config.spaces.len() - 1;
-        } else {
-            self.current_space_idx -= 1;
-        }
-        self.selected_issue_idx = 0;
-        self.detail_issue = None;
-        self.project_cursor_idx = 0;
-        self.filter_assignee_id = None;
+        self.current_space_idx = idx;
         self.screen = Screen::ProjectSelect;
     }
 
@@ -348,7 +337,8 @@ mod tests {
         let state = AppState::new(config, false);
         assert_eq!(state.current_space_name(), "space1");
         assert_eq!(state.current_space_idx, 0);
-        assert_eq!(state.screen, Screen::ProjectSelect);
+        assert_eq!(state.screen, Screen::SpaceSelect);
+        assert_eq!(state.space_cursor_idx, state.current_space_idx);
         assert!(!state.should_quit);
     }
 
@@ -358,6 +348,7 @@ mod tests {
         let state = AppState::new(config, false);
         assert_eq!(state.current_space_idx, 1);
         assert_eq!(state.current_space_name(), "space2");
+        assert_eq!(state.space_cursor_idx, state.current_space_idx);
     }
 
     #[test]
@@ -466,28 +457,6 @@ mod tests {
     }
 
     #[test]
-    fn test_switch_space_next() {
-        let config = make_config("space1", &["space1", "space2", "space3"]);
-        let mut state = AppState::new(config, false);
-        state.switch_space_next();
-        assert_eq!(state.current_space_name(), "space2");
-        state.switch_space_next();
-        assert_eq!(state.current_space_name(), "space3");
-        state.switch_space_next(); // wraps around
-        assert_eq!(state.current_space_name(), "space1");
-    }
-
-    #[test]
-    fn test_switch_space_prev() {
-        let config = make_config("space1", &["space1", "space2", "space3"]);
-        let mut state = AppState::new(config, false);
-        state.switch_space_prev(); // wraps around
-        assert_eq!(state.current_space_name(), "space3");
-        state.switch_space_prev();
-        assert_eq!(state.current_space_name(), "space2");
-    }
-
-    #[test]
     fn test_needs_issue_fetch_false_when_statuses_not_loaded() {
         let config = make_config("space1", &["space1"]);
         let state = AppState::new(config, false);
@@ -585,18 +554,6 @@ mod tests {
             projects: vec![],
         });
         assert!(!state.needs_projects_fetch());
-    }
-
-    #[test]
-    fn test_switch_space_resets_project_state() {
-        let config = make_config("space1", &["space1", "space2"]);
-        let mut state = AppState::new(config, false);
-        state.filter_assignee_id = Some(42);
-        state.project_cursor_idx = 3;
-        state.switch_space_next();
-        assert_eq!(state.screen, Screen::ProjectSelect);
-        assert_eq!(state.project_cursor_idx, 0);
-        assert!(state.filter_assignee_id.is_none());
     }
 
     fn make_status(id: i64, name: &str) -> IssueStatus {
@@ -963,32 +920,6 @@ mod tests {
     }
 
     #[test]
-    fn test_switch_space_next_clears_search() {
-        let config = make_config("space1", &["space1", "space2"]);
-        let mut state = AppState::new(config, false);
-        state.search_active = true;
-        state.search_query = "proj".to_string();
-        state.search_match_idx = 1;
-        state.switch_space_next();
-        assert!(!state.search_active);
-        assert!(state.search_query.is_empty());
-        assert_eq!(state.search_match_idx, 0);
-    }
-
-    #[test]
-    fn test_switch_space_prev_clears_search() {
-        let config = make_config("space1", &["space1", "space2"]);
-        let mut state = AppState::new(config, false);
-        state.search_active = true;
-        state.search_query = "proj".to_string();
-        state.search_match_idx = 1;
-        state.switch_space_prev();
-        assert!(!state.search_active);
-        assert!(state.search_query.is_empty());
-        assert_eq!(state.search_match_idx, 0);
-    }
-
-    #[test]
     fn test_issue_detail_loaded_clears_search() {
         let config = make_config("space1", &["space1"]);
         let mut state = AppState::new(config, false);
@@ -1018,5 +949,37 @@ mod tests {
         assert_eq!(state.selected_issue_idx, 2); // cursor preserved
         assert!(!state.search_active); // search still cleared
         assert!(state.search_query.is_empty());
+    }
+
+    #[test]
+    fn test_space_cursor_idx_initial_value() {
+        let config = make_config("space2", &["space1", "space2"]);
+        let state = AppState::new(config, false);
+        assert_eq!(state.current_space_idx, 1);
+        assert_eq!(state.space_cursor_idx, 1);
+    }
+
+    #[test]
+    fn test_select_space_resets_state() {
+        let config = make_config("space1", &["space1", "space2"]);
+        let mut state = AppState::new(config, false);
+        state.space_cursor_idx = 1;
+        state.filter_assignee_id = Some(42);
+        state.project_cursor_idx = 3;
+        state.selected_issue_idx = 5;
+        state.search_active = true;
+        state.search_query = "proj".to_string();
+
+        let idx = state.space_cursor_idx;
+        state.select_space(idx);
+
+        assert_eq!(state.current_space_idx, 1);
+        assert_eq!(state.space_cursor_idx, 1); // cursor unchanged by select_space
+        assert!(state.filter_assignee_id.is_none());
+        assert_eq!(state.project_cursor_idx, 0);
+        assert_eq!(state.selected_issue_idx, 0);
+        assert!(!state.search_active);
+        assert!(state.search_query.is_empty());
+        assert_eq!(state.screen, Screen::ProjectSelect);
     }
 }
