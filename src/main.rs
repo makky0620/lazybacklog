@@ -153,6 +153,7 @@ async fn run<B: ratatui::backend::Backend>(
         if let Some(ev) = rx.recv().await {
             match ev {
                 AppEvent::Key(key) => match state.screen {
+                    Screen::SpaceSelect => handle_space_select_key(key, &mut state, &config),
                     Screen::IssueList => handle_list_key(key, &mut state, &config, tx.clone()),
                     Screen::IssueDetail => handle_detail_key(key, &mut state),
                     Screen::Filter => handle_filter_key(key, &mut state, &config, tx.clone()),
@@ -304,6 +305,11 @@ fn handle_list_key(
             state.status_filter_cursor_idx = 0;
             state.screen = Screen::StatusFilter;
         }
+        KeyCode::Esc => {
+            state.selected_issue_idx = 0;
+            state.clear_search();
+            state.screen = Screen::ProjectSelect;
+        }
         KeyCode::Char('r') => {
             state.clear_search();
             let project_id = state.selected_project().map(|p| p.id);
@@ -312,12 +318,6 @@ fn handle_list_key(
             state.current_space_state_mut().issues = None;
             state.current_space_state_mut().loading_issues = true;
             fetch_issues(state, config, tx, project_id, assignee_id, status_ids);
-        }
-        KeyCode::Char(']') => {
-            state.switch_space_next();
-        }
-        KeyCode::Char('[') => {
-            state.switch_space_prev();
         }
         KeyCode::Char('/') => {
             state.search_active = true;
@@ -607,6 +607,36 @@ fn handle_status_filter_key(
     }
 }
 
+fn handle_space_select_key(
+    key: crossterm::event::KeyEvent,
+    state: &mut AppState,
+    config: &config::Config,
+) {
+    match key.code {
+        KeyCode::Char('q') => state.should_quit = true,
+        KeyCode::Char('j') | KeyCode::Down => {
+            let max = config.spaces.len().saturating_sub(1);
+            if state.space_cursor_idx < max {
+                state.space_cursor_idx += 1;
+            }
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            if state.space_cursor_idx > 0 {
+                state.space_cursor_idx -= 1;
+            }
+        }
+        KeyCode::Enter => {
+            if config.spaces.is_empty() {
+                return;
+            }
+            let idx = state.space_cursor_idx;
+            state.select_space(idx);
+        }
+        KeyCode::Esc => {} // no-op
+        _ => {}
+    }
+}
+
 fn handle_project_select_key(
     key: crossterm::event::KeyEvent,
     state: &mut AppState,
@@ -631,6 +661,10 @@ fn handle_project_select_key(
             if state.project_cursor_idx > 0 {
                 state.project_cursor_idx -= 1;
             }
+        }
+        KeyCode::Esc => {
+            state.project_cursor_idx = 0;
+            state.screen = Screen::SpaceSelect;
         }
         KeyCode::Enter => {
             if project_count == 0 {
