@@ -21,7 +21,7 @@ cargo run -- --demo
 - Filter by assignee or status
 - Search issues, assignees, and statuses with `/`
 - Project selection per space
-- Multiple Backlog spaces with `[` / `]` switching
+- Multiple Backlog spaces with a dedicated space selection screen
 - API key authentication
 
 ## Installation
@@ -68,6 +68,25 @@ Get your API key: Backlog → Personal Settings → API → Add API Key
 
 ## Key Bindings
 
+### Space Select
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `Enter` | Select space |
+| `q` | Quit |
+
+### Project Select
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `Enter` | Select project |
+| `Esc` | Back to space select |
+| `q` | Quit |
+
 ### Issue List
 
 | Key | Action |
@@ -80,7 +99,7 @@ Get your API key: Backlog → Personal Settings → API → Add API Key
 | `/` | Start search |
 | `n` / `N` | Next / previous search match |
 | `r` | Refresh issues |
-| `[` / `]` | Switch space |
+| `Esc` | Back to project select |
 | `q` | Quit |
 
 ### Popups (Filter / Status Filter)
