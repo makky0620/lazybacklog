@@ -1,16 +1,32 @@
 use crate::api::models::Issue;
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
-pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
-    let popup_area = centered_rect(80, 80, area);
-    frame.render_widget(Clear, popup_area);
+pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // title bar
+            Constraint::Min(0),    // content
+            Constraint::Length(1), // help bar
+        ])
+        .split(area);
 
+    // Title bar
+    let title = format!(" {}  {}", issue.issue_key, issue.summary);
+    let title_paragraph = Paragraph::new(title).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
+    frame.render_widget(title_paragraph, chunks[0]);
+
+    // Content
     let assignee = issue
         .assignee
         .as_ref()
@@ -30,10 +46,6 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
     let description = issue.description.as_deref().unwrap_or("(no description)");
 
     let mut lines = vec![
-        Line::from(vec![Span::styled(
-            issue.summary.as_str(),
-            Style::default().add_modifier(Modifier::BOLD),
-        )]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Assignee: ", Style::default().fg(Color::Yellow)),
@@ -65,37 +77,14 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
         lines.push(Line::from(desc_line.to_string()));
     }
 
-    let paragraph = Paragraph::new(lines)
-        .block(
-            Block::default()
-                .title(format!(" {} ", issue.issue_key))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
-        )
-        .wrap(Wrap { trim: false });
+    let content_paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::NONE))
+        .wrap(Wrap { trim: false })
+        .scroll((scroll_offset, 0));
+    frame.render_widget(content_paragraph, chunks[1]);
 
-    frame.render_widget(paragraph, popup_area);
-
-    // Help text
-    if popup_area.height > 2 {
-        let help_area = Rect {
-            x: popup_area.x + 1,
-            y: popup_area.y + popup_area.height - 2,
-            width: popup_area.width.saturating_sub(2),
-            height: 1,
-        };
-        let help = Paragraph::new("[Esc] Close").style(Style::default().fg(Color::DarkGray));
-        frame.render_widget(help, help_area);
-    }
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let width = (area.width as u32 * percent_x as u32 / 100) as u16;
-    let height = (area.height as u32 * percent_y as u32 / 100) as u16;
-    Rect {
-        x: area.x + (area.width - width) / 2,
-        y: area.y + (area.height - height) / 2,
-        width,
-        height,
-    }
+    // Help bar
+    let help = Paragraph::new(" [j/k] Scroll  [Esc] Back")
+        .style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(help, chunks[2]);
 }

@@ -33,6 +33,14 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         return;
     }
 
+    if state.screen == Screen::IssueDetail {
+        if let Some(issue) = &state.detail_issue {
+            issue_detail::render(frame, area, issue, state.detail_scroll_offset);
+        }
+        render_status_message(frame, area, state);
+        return;
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -49,14 +57,10 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     render_help_bar(frame, chunks[3], state);
 
     match state.screen {
-        Screen::IssueDetail => {
-            if let Some(issue) = &state.detail_issue {
-                issue_detail::render(frame, area, issue);
-            }
-        }
         Screen::Filter => {
             filter::render(frame, area, state);
         }
+        Screen::IssueDetail => {} // dead code — early return above handles this; satisfies exhaustiveness
         Screen::IssueList => {}
         Screen::ProjectSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
         Screen::SpaceSelect => {} // dead code — early return above handles this; satisfies exhaustiveness
