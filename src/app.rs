@@ -6,7 +6,7 @@ use crate::event::AppEvent;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
-    SpaceSelect,      // NEW — initial screen
+    SpaceSelect, // NEW — initial screen
     ProjectSelect,
     IssueList,
     IssueDetail,

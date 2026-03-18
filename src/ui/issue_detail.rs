@@ -54,7 +54,10 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue) {
             Span::raw(due_date),
         ]),
         Line::from(""),
-        Line::from(Span::styled("Description:", Style::default().fg(Color::Yellow))),
+        Line::from(Span::styled(
+            "Description:",
+            Style::default().fg(Color::Yellow),
+        )),
         Line::from(""),
     ];
 
