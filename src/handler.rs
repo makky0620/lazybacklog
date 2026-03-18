@@ -613,6 +613,52 @@ pub fn fetch_statuses(
     });
 }
 
+pub fn fetch_projects(
+    state: &AppState,
+    config: &config::Config,
+    tx: mpsc::UnboundedSender<AppEvent>,
+) {
+    if state.demo_mode {
+        let space = state.current_space_name().to_string();
+        let _ = tx.send(AppEvent::ProjectsLoaded {
+            space,
+            projects: mock::projects(),
+        });
+        return;
+    }
+    let space_name = state.current_space_name().to_string();
+    let space_cfg = config
+        .spaces
+        .iter()
+        .find(|s| s.name == space_name)
+        .unwrap()
+        .clone();
+    tokio::spawn(async move {
+        match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
+            Ok(client) => match client.fetch_projects().await {
+                Ok(projects) => {
+                    let _ = tx.send(AppEvent::ProjectsLoaded {
+                        space: space_name,
+                        projects,
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::ApiError {
+                        space: space_name,
+                        message: e.to_string(),
+                    });
+                }
+            },
+            Err(e) => {
+                let _ = tx.send(AppEvent::ApiError {
+                    space: space_name,
+                    message: e.to_string(),
+                });
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -703,50 +749,4 @@ mod tests {
         assert_eq!(state.detail_scroll_offset, 0);
         assert!(state.detail_issue.is_none());
     }
-}
-
-pub fn fetch_projects(
-    state: &AppState,
-    config: &config::Config,
-    tx: mpsc::UnboundedSender<AppEvent>,
-) {
-    if state.demo_mode {
-        let space = state.current_space_name().to_string();
-        let _ = tx.send(AppEvent::ProjectsLoaded {
-            space,
-            projects: mock::projects(),
-        });
-        return;
-    }
-    let space_name = state.current_space_name().to_string();
-    let space_cfg = config
-        .spaces
-        .iter()
-        .find(|s| s.name == space_name)
-        .unwrap()
-        .clone();
-    tokio::spawn(async move {
-        match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
-            Ok(client) => match client.fetch_projects().await {
-                Ok(projects) => {
-                    let _ = tx.send(AppEvent::ProjectsLoaded {
-                        space: space_name,
-                        projects,
-                    });
-                }
-                Err(e) => {
-                    let _ = tx.send(AppEvent::ApiError {
-                        space: space_name,
-                        message: e.to_string(),
-                    });
-                }
-            },
-            Err(e) => {
-                let _ = tx.send(AppEvent::ApiError {
-                    space: space_name,
-                    message: e.to_string(),
-                });
-            }
-        }
-    });
 }
