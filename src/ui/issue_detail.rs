@@ -84,7 +84,7 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) 
     frame.render_widget(content_paragraph, chunks[1]);
 
     // Help bar
-    let help = Paragraph::new(" [j/k] Scroll  [Esc] Back")
-        .style(Style::default().fg(Color::DarkGray));
+    let help =
+        Paragraph::new(" [j/k] Scroll  [Esc] Back").style(Style::default().fg(Color::DarkGray));
     frame.render_widget(help, chunks[2]);
 }
