@@ -160,9 +160,19 @@ pub fn handle_list_key(
 }
 
 pub fn handle_detail_key(key: KeyEvent, state: &mut AppState) {
-    if key.code == KeyCode::Esc {
-        state.screen = Screen::IssueList;
-        state.detail_issue = None;
+    match key.code {
+        KeyCode::Char('j') | KeyCode::Down => {
+            state.detail_scroll_offset += 1;
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            state.detail_scroll_offset = state.detail_scroll_offset.saturating_sub(1);
+        }
+        KeyCode::Esc => {
+            state.screen = Screen::IssueList;
+            state.detail_issue = None;
+            state.detail_scroll_offset = 0;
+        }
+        _ => {}
     }
 }
 
@@ -601,6 +611,98 @@ pub fn fetch_statuses(
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::models::IssueStatus;
+    use crate::config::SpaceConfig;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_config() -> config::Config {
+        config::Config {
+            default_space: "space1".to_string(),
+            spaces: vec![SpaceConfig {
+                name: "space1".to_string(),
+                host: "space1.backlog.com".to_string(),
+                api_key: "key".to_string(),
+            }],
+        }
+    }
+
+    fn make_state() -> AppState {
+        AppState::new(make_config(), false)
+    }
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn test_detail_key_j_increments_scroll() {
+        let mut state = make_state();
+        state.detail_scroll_offset = 0;
+        handle_detail_key(key(KeyCode::Char('j')), &mut state);
+        assert_eq!(state.detail_scroll_offset, 1);
+    }
+
+    #[test]
+    fn test_detail_key_down_increments_scroll() {
+        let mut state = make_state();
+        state.detail_scroll_offset = 3;
+        handle_detail_key(key(KeyCode::Down), &mut state);
+        assert_eq!(state.detail_scroll_offset, 4);
+    }
+
+    #[test]
+    fn test_detail_key_k_decrements_scroll() {
+        let mut state = make_state();
+        state.detail_scroll_offset = 5;
+        handle_detail_key(key(KeyCode::Char('k')), &mut state);
+        assert_eq!(state.detail_scroll_offset, 4);
+    }
+
+    #[test]
+    fn test_detail_key_up_decrements_scroll() {
+        let mut state = make_state();
+        state.detail_scroll_offset = 2;
+        handle_detail_key(key(KeyCode::Up), &mut state);
+        assert_eq!(state.detail_scroll_offset, 1);
+    }
+
+    #[test]
+    fn test_detail_key_k_at_zero_stays_zero() {
+        let mut state = make_state();
+        state.detail_scroll_offset = 0;
+        handle_detail_key(key(KeyCode::Char('k')), &mut state);
+        assert_eq!(state.detail_scroll_offset, 0);
+    }
+
+    #[test]
+    fn test_detail_key_esc_returns_to_issue_list() {
+        let mut state = make_state();
+        state.screen = Screen::IssueDetail;
+        state.detail_scroll_offset = 3;
+        state.detail_issue = Some(crate::api::models::Issue {
+            id: 1,
+            issue_key: "PROJ-1".to_string(),
+            summary: "test".to_string(),
+            description: None,
+            assignee: None,
+            status: IssueStatus {
+                id: 1,
+                name: "Open".to_string(),
+            },
+            priority: None,
+            issue_type: None,
+            due_date: None,
+        });
+        handle_detail_key(key(KeyCode::Esc), &mut state);
+        assert_eq!(state.screen, Screen::IssueList);
+        assert_eq!(state.detail_scroll_offset, 0);
+        assert!(state.detail_issue.is_none());
+    }
 }
 
 pub fn fetch_projects(
