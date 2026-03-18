@@ -42,6 +42,7 @@ pub struct AppState {
     pub screen: Screen,
     pub status_message: Option<String>,
     pub should_quit: bool,
+    pub detail_scroll_offset: u16,
     pub status_filter_cursor_idx: usize,
     pub status_filter_pending: Vec<i64>,
     pub search_active: bool,
@@ -74,6 +75,7 @@ impl AppState {
             screen: Screen::SpaceSelect,
             status_message: None,
             should_quit: false,
+            detail_scroll_offset: 0,
             status_filter_cursor_idx: 0,
             status_filter_pending: vec![],
             search_active: false,
@@ -160,6 +162,7 @@ impl AppState {
         self.clear_search();
         self.selected_issue_idx = 0;
         self.detail_issue = None;
+        self.detail_scroll_offset = 0;
         self.project_cursor_idx = 0;
         self.filter_assignee_id = None;
         self.current_space_idx = idx;
@@ -250,6 +253,7 @@ impl AppState {
             AppEvent::IssueDetailLoaded(issue) => {
                 self.clear_search();
                 self.detail_issue = Some(issue);
+                self.detail_scroll_offset = 0;
                 self.screen = Screen::IssueDetail;
             }
             AppEvent::SpaceUsersLoaded { space, users } => {
@@ -949,6 +953,31 @@ mod tests {
         assert_eq!(state.selected_issue_idx, 2); // cursor preserved
         assert!(!state.search_active); // search still cleared
         assert!(state.search_query.is_empty());
+    }
+
+    #[test]
+    fn test_detail_scroll_offset_initial_zero() {
+        let config = make_config("space1", &["space1"]);
+        let state = AppState::new(config, false);
+        assert_eq!(state.detail_scroll_offset, 0);
+    }
+
+    #[test]
+    fn test_detail_scroll_offset_reset_on_issue_detail_loaded() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.detail_scroll_offset = 5;
+        state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-1")));
+        assert_eq!(state.detail_scroll_offset, 0);
+    }
+
+    #[test]
+    fn test_select_space_resets_detail_scroll_offset() {
+        let config = make_config("space1", &["space1", "space2"]);
+        let mut state = AppState::new(config, false);
+        state.detail_scroll_offset = 7;
+        state.select_space(1);
+        assert_eq!(state.detail_scroll_offset, 0);
     }
 
     #[test]
