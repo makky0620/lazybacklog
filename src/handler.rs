@@ -173,14 +173,13 @@ pub fn handle_detail_key(key: KeyEvent, state: &mut AppState) {
             state.detail_scroll_offset = 0;
         }
         KeyCode::Char('o') => {
-            if let Some(issue) = &state.detail_issue {
-                let _url = format!(
+            if let Some(_issue) = &state.detail_issue {
+                #[cfg(not(test))]
+                let _ = open::that(format!(
                     "https://{}/view/{}",
                     state.config.spaces[state.current_space_idx].host,
-                    issue.issue_key
-                );
-                #[cfg(not(test))]
-                let _ = open::that(_url);
+                    _issue.issue_key
+                ));
             }
         }
         _ => {}
