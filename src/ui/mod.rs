@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::Paragraph,
+    widgets::{Block, Borders, Paragraph},
     Frame,
 };
 
@@ -45,16 +45,30 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // title bar
-            Constraint::Length(1), // filter bar
-            Constraint::Min(0),    // content
+            Constraint::Min(0),    // block panel
             Constraint::Length(1), // help bar
         ])
         .split(area);
 
     render_title(frame, chunks[0], state);
-    render_filter_bar(frame, chunks[1], state);
-    issue_list::render(frame, chunks[2], state);
-    render_help_bar(frame, chunks[3], state);
+
+    let panel_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray));
+    let panel_inner = panel_block.inner(chunks[1]);
+    frame.render_widget(panel_block, chunks[1]);
+
+    let inner_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // filter bar
+            Constraint::Min(0),    // issue list
+        ])
+        .split(panel_inner);
+
+    render_filter_bar(frame, inner_chunks[0], state);
+    issue_list::render(frame, inner_chunks[1], state);
+    render_help_bar(frame, chunks[2], state);
 
     match state.screen {
         Screen::Filter => {
@@ -76,7 +90,8 @@ fn render_title(frame: &mut Frame, area: Rect, state: &AppState) {
     let title = format!(" lazybacklog ──── [{}] ", state.current_space_name());
     let paragraph = Paragraph::new(title).style(
         Style::default()
-            .fg(Color::Cyan)
+            .bg(Color::Cyan)
+            .fg(Color::Black)
             .add_modifier(Modifier::BOLD),
     );
     frame.render_widget(paragraph, area);
