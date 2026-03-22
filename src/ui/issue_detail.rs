@@ -21,7 +21,8 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) 
     let title = format!(" {}  {}", issue.issue_key, issue.summary);
     let title_paragraph = Paragraph::new(title).style(
         Style::default()
-            .fg(Color::Cyan)
+            .bg(Color::Cyan)
+            .fg(Color::Black)
             .add_modifier(Modifier::BOLD),
     );
     frame.render_widget(title_paragraph, chunks[0]);
@@ -48,27 +49,27 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) 
     let mut lines = vec![
         Line::from(""),
         Line::from(vec![
-            Span::styled("Assignee: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Assignee: ", Style::default().fg(Color::Cyan)),
             Span::raw(assignee),
             Span::raw("    "),
-            Span::styled("Priority: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Priority: ", Style::default().fg(Color::Cyan)),
             Span::raw(priority),
         ]),
         Line::from(vec![
-            Span::styled("Status: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Status: ", Style::default().fg(Color::Cyan)),
             Span::raw(issue.status.name.as_str()),
             Span::raw("    "),
-            Span::styled("Type: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Type: ", Style::default().fg(Color::Cyan)),
             Span::raw(issue_type),
         ]),
         Line::from(vec![
-            Span::styled("Due: ", Style::default().fg(Color::Yellow)),
+            Span::styled("Due: ", Style::default().fg(Color::Cyan)),
             Span::raw(due_date),
         ]),
         Line::from(""),
         Line::from(Span::styled(
             "Description:",
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(Color::Cyan),
         )),
         Line::from(""),
     ];
@@ -78,7 +79,11 @@ pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) 
     }
 
     let content_paragraph = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::NONE))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        )
         .wrap(Wrap { trim: false })
         .scroll((scroll_offset, 0));
     frame.render_widget(content_paragraph, chunks[1]);
