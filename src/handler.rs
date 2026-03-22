@@ -749,4 +749,39 @@ mod tests {
         assert_eq!(state.detail_scroll_offset, 0);
         assert!(state.detail_issue.is_none());
     }
+
+    #[test]
+    fn test_detail_key_o_with_issue_does_not_change_state() {
+        let mut state = make_state();
+        state.screen = Screen::IssueDetail;
+        state.detail_scroll_offset = 2;
+        state.detail_issue = Some(crate::api::models::Issue {
+            id: 1,
+            issue_key: "PROJ-1".to_string(),
+            summary: "test".to_string(),
+            description: None,
+            assignee: None,
+            status: IssueStatus {
+                id: 1,
+                name: "Open".to_string(),
+            },
+            priority: None,
+            issue_type: None,
+            due_date: None,
+        });
+        handle_detail_key(key(KeyCode::Char('o')), &mut state);
+        assert_eq!(state.screen, Screen::IssueDetail);
+        assert_eq!(state.detail_scroll_offset, 2);
+        assert!(state.detail_issue.is_some());
+    }
+
+    #[test]
+    fn test_detail_key_o_without_issue_is_noop() {
+        let mut state = make_state();
+        state.screen = Screen::IssueDetail;
+        state.detail_issue = None;
+        handle_detail_key(key(KeyCode::Char('o')), &mut state);
+        assert_eq!(state.screen, Screen::IssueDetail);
+        assert!(state.detail_issue.is_none());
+    }
 }
