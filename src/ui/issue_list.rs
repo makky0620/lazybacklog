@@ -92,11 +92,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let table = Table::new(rows, widths)
         .header(
             Row::new(vec!["Key", "Summary", "Assignee", "Status"])
-                .style(Style::default().fg(Color::Yellow)),
+                .style(Style::default().fg(Color::Cyan)),
         )
         .highlight_style(
             Style::default()
-                .bg(Color::Blue)
+                .bg(Color::White)
+                .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▶ ");
