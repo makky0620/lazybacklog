@@ -17,7 +17,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             Block::default()
                 .title(" Assignee Filter ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(Color::DarkGray)),
         );
         frame.render_widget(list, popup_area);
         return;
@@ -59,11 +59,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             Block::default()
                 .title(" Assignee Filter ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(Color::DarkGray)),
         )
         .highlight_style(
             Style::default()
-                .bg(Color::Blue)
+                .bg(Color::White)
+                .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▶ ");
