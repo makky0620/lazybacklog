@@ -24,7 +24,8 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_title(frame: &mut Frame, area: Rect) {
     let paragraph = Paragraph::new(" lazybacklog").style(
         Style::default()
-            .fg(Color::Cyan)
+            .bg(Color::Cyan)
+            .fg(Color::Black)
             .add_modifier(Modifier::BOLD),
     );
     frame.render_widget(paragraph, area);
@@ -41,7 +42,8 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
     let list = List::new(items)
         .highlight_style(
             Style::default()
-                .bg(Color::Blue)
+                .bg(Color::White)
+                .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▶ ");
