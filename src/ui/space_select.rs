@@ -70,7 +70,6 @@ fn render_help_bar(frame: &mut Frame, area: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::AppState;
     use crate::config::{Config, SpaceConfig};
     use ratatui::{backend::TestBackend, Terminal};
 
