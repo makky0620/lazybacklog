@@ -53,6 +53,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     render_title(frame, chunks[0], state);
 
     let panel_block = Block::default()
+        .title(" Issues ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray));
     let panel_inner = panel_block.inner(chunks[1]);
