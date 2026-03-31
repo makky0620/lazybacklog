@@ -34,6 +34,15 @@ pub struct IssueType {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct Comment {
+    pub id: i64,
+    pub content: Option<String>,
+    #[serde(rename = "createdUser")]
+    pub created_user: Option<User>,
+    pub created: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Issue {
     pub id: i64,
     #[serde(rename = "issueKey")]
@@ -97,5 +106,33 @@ mod tests {
         let json = serde_json::json!({ "id": 100, "projectKey": "PROJ", "name": "My Project" });
         let project: Project = serde_json::from_value(json).unwrap();
         assert_eq!(project.project_key, "PROJ");
+    }
+
+    #[test]
+    fn test_deserialize_comment() {
+        let json = serde_json::json!({
+            "id": 1,
+            "content": "Hello",
+            "createdUser": { "id": 10, "name": "Alice" },
+            "created": "2026-03-31T12:00:00Z"
+        });
+        let comment: Comment = serde_json::from_value(json).unwrap();
+        assert_eq!(comment.id, 1);
+        assert_eq!(comment.content.as_deref(), Some("Hello"));
+        assert_eq!(comment.created_user.unwrap().name, "Alice");
+        assert_eq!(comment.created, "2026-03-31T12:00:00Z");
+    }
+
+    #[test]
+    fn test_deserialize_comment_null_fields() {
+        let json = serde_json::json!({
+            "id": 2,
+            "content": null,
+            "createdUser": null,
+            "created": "2026-03-31T12:00:00Z"
+        });
+        let comment: Comment = serde_json::from_value(json).unwrap();
+        assert!(comment.content.is_none());
+        assert!(comment.created_user.is_none());
     }
 }
