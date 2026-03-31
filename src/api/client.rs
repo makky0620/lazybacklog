@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use std::time::Duration;
 
-use super::models::{Issue, IssueStatus, Project, User};
+use super::models::{Comment, Issue, IssueStatus, Project, User};
 
 pub struct BacklogClient {
     base_url: String,
@@ -76,6 +76,24 @@ impl BacklogClient {
         resp.json::<Issue>()
             .await
             .context("Failed to parse issue response")
+    }
+
+    pub async fn fetch_comments(&self, issue_id_or_key: &str) -> Result<Vec<Comment>> {
+        let resp = self
+            .http
+            .get(format!("{}/issues/{}/comments", self.base_url, issue_id_or_key))
+            .query(&[("apiKey", &self.api_key)])
+            .send()
+            .await
+            .context("Failed to connect to Backlog API")?;
+        if resp.status() == 401 {
+            anyhow::bail!("401 Unauthorized - check your API key");
+        }
+        resp.error_for_status_ref()
+            .context("Backlog API returned an error")?;
+        resp.json::<Vec<Comment>>()
+            .await
+            .context("Failed to parse comments response")
     }
 
     pub async fn fetch_projects(&self) -> Result<Vec<Project>> {
@@ -383,5 +401,43 @@ mod tests {
         let client = make_client(&server).await;
         let issues = client.fetch_issues(None, None, &[]).await.unwrap();
         assert_eq!(issues.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_comments_success() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues/PROJ-1/comments"))
+            .and(query_param("apiKey", "test_api_key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                {
+                    "id": 1,
+                    "content": "First comment",
+                    "createdUser": { "id": 10, "name": "Alice" },
+                    "created": "2026-03-31T12:00:00Z"
+                }
+            ])))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let comments = client.fetch_comments("PROJ-1").await.unwrap();
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0].content.as_deref(), Some("First comment"));
+        assert_eq!(comments[0].created_user.as_ref().unwrap().name, "Alice");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_comments_401() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v2/issues/PROJ-1/comments"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+
+        let client = make_client(&server).await;
+        let err = client.fetch_comments("PROJ-1").await.unwrap_err();
+        assert!(err.to_string().contains("401 Unauthorized"));
     }
 }
