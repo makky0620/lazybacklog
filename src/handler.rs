@@ -56,6 +56,7 @@ pub fn handle_list_key(
         KeyCode::Enter => {
             if state.demo_mode {
                 if let Some(issue) = state.selected_issue().cloned() {
+                    state.detail_comments = Some(vec![]);
                     let _ = tx.send(AppEvent::IssueDetailLoaded(issue));
                 }
                 return;
@@ -69,23 +70,55 @@ pub fn handle_list_key(
                     .find(|s| s.name == space_name)
                     .unwrap()
                     .clone();
-                let tx = tx.clone();
+                state.detail_comments = None;
+                // spawn fetch_issue
+                let tx1 = tx.clone();
+                let issue_key1 = issue_key.clone();
+                let space_cfg1 = space_cfg.clone();
+                let space_name1 = space_name.clone();
                 tokio::spawn(async move {
-                    match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
-                        Ok(client) => match client.fetch_issue(&issue_key).await {
+                    match api::client::BacklogClient::new(space_cfg1.host, space_cfg1.api_key) {
+                        Ok(client) => match client.fetch_issue(&issue_key1).await {
                             Ok(issue) => {
-                                let _ = tx.send(AppEvent::IssueDetailLoaded(issue));
+                                let _ = tx1.send(AppEvent::IssueDetailLoaded(issue));
                             }
                             Err(e) => {
-                                let _ = tx.send(AppEvent::ApiError {
-                                    space: space_name,
+                                let _ = tx1.send(AppEvent::ApiError {
+                                    space: space_name1,
                                     message: e.to_string(),
                                 });
                             }
                         },
                         Err(e) => {
-                            let _ = tx.send(AppEvent::ApiError {
-                                space: space_name,
+                            let _ = tx1.send(AppEvent::ApiError {
+                                space: space_name1,
+                                message: e.to_string(),
+                            });
+                        }
+                    }
+                });
+                // spawn fetch_comments
+                let tx2 = tx.clone();
+                let space_name2 = space_name.clone();
+                tokio::spawn(async move {
+                    match api::client::BacklogClient::new(space_cfg.host, space_cfg.api_key) {
+                        Ok(client) => match client.fetch_comments(&issue_key).await {
+                            Ok(comments) => {
+                                let _ = tx2.send(AppEvent::CommentsLoaded {
+                                    issue_key,
+                                    comments,
+                                });
+                            }
+                            Err(e) => {
+                                let _ = tx2.send(AppEvent::ApiError {
+                                    space: space_name2,
+                                    message: e.to_string(),
+                                });
+                            }
+                        },
+                        Err(e) => {
+                            let _ = tx2.send(AppEvent::ApiError {
+                                space: space_name2,
                                 message: e.to_string(),
                             });
                         }
@@ -171,6 +204,7 @@ pub fn handle_detail_key(key: KeyEvent, state: &mut AppState) {
             state.screen = Screen::IssueList;
             state.detail_issue = None;
             state.detail_scroll_offset = 0;
+            state.detail_comments = None;
         }
         KeyCode::Char('o') => {
             if let Some(_issue) = &state.detail_issue {
@@ -793,5 +827,25 @@ mod tests {
         handle_detail_key(key(KeyCode::Char('o')), &mut state);
         assert_eq!(state.screen, Screen::IssueDetail);
         assert!(state.detail_issue.is_none());
+    }
+
+    #[test]
+    fn test_detail_key_esc_clears_comments() {
+        let mut state = make_state();
+        state.screen = Screen::IssueDetail;
+        state.detail_issue = Some(crate::api::models::Issue {
+            id: 1,
+            issue_key: "PROJ-1".to_string(),
+            summary: "test".to_string(),
+            description: None,
+            assignee: None,
+            status: IssueStatus { id: 1, name: "Open".to_string() },
+            priority: None,
+            issue_type: None,
+            due_date: None,
+        });
+        state.detail_comments = Some(vec![]);
+        handle_detail_key(key(KeyCode::Esc), &mut state);
+        assert!(state.detail_comments.is_none());
     }
 }
