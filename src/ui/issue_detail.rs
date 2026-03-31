@@ -1,4 +1,4 @@
-use crate::api::models::Issue;
+use crate::api::models::{Comment, Issue};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -7,18 +7,18 @@ use ratatui::{
     Frame,
 };
 
-pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) {
+pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16, comments: Option<&[Comment]>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(5), // details block (3 content lines + 2 border)
-            Constraint::Min(0),    // description block
+            Constraint::Min(0),    // description + comments block
             Constraint::Length(1), // help bar
         ])
         .split(area);
 
     render_details(frame, chunks[0], issue);
-    render_description(frame, chunks[1], issue, scroll_offset);
+    render_description_and_comments(frame, chunks[1], issue, scroll_offset, comments);
     render_help_bar(frame, chunks[2]);
 }
 
@@ -70,15 +70,51 @@ fn render_details(frame: &mut Frame, area: Rect, issue: &Issue) {
     frame.render_widget(paragraph, area);
 }
 
-fn render_description(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16) {
+fn render_description_and_comments(
+    frame: &mut Frame,
+    area: Rect,
+    issue: &Issue,
+    scroll_offset: u16,
+    comments: Option<&[Comment]>,
+) {
     let description = issue.description.as_deref().unwrap_or("(no description)");
-    let lines: Vec<Line> = description
+    let mut lines: Vec<Line> = description
         .lines()
         .map(|l| Line::from(l.to_string()))
         .collect();
 
+    match comments {
+        None => {
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "(loading comments...)",
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+        Some(comments) => {
+            for (i, comment) in comments.iter().enumerate() {
+                let author = comment
+                    .created_user
+                    .as_ref()
+                    .map(|u| u.name.as_str())
+                    .unwrap_or("?");
+                let date = comment.created.get(..10).unwrap_or(&comment.created);
+                let separator = format!("── {}: {}  {} ──", i + 1, author, date);
+                lines.push(Line::from(""));
+                lines.push(Line::from(Span::styled(
+                    separator,
+                    Style::default().fg(Color::DarkGray),
+                )));
+                let content = comment.content.as_deref().unwrap_or("");
+                for cl in content.lines() {
+                    lines.push(Line::from(cl.to_string()));
+                }
+            }
+        }
+    }
+
     let block = Block::default()
-        .title(" Description ")
+        .title(" Description & Comments ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray));
 
@@ -121,7 +157,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let issue = make_issue();
         terminal
-            .draw(|frame| render(frame, frame.area(), &issue, 0))
+            .draw(|frame| render(frame, frame.area(), &issue, 0, None))
             .unwrap();
         let content: String = terminal
             .backend()
@@ -138,12 +174,12 @@ mod tests {
     }
 
     #[test]
-    fn issue_detail_shows_description_block_title() {
-        let backend = TestBackend::new(60, 15);
+    fn issue_detail_shows_description_and_comments_block_title() {
+        let backend = TestBackend::new(60, 20);
         let mut terminal = Terminal::new(backend).unwrap();
         let issue = make_issue();
         terminal
-            .draw(|frame| render(frame, frame.area(), &issue, 0))
+            .draw(|frame| render(frame, frame.area(), &issue, 0, None))
             .unwrap();
         let content: String = terminal
             .backend()
@@ -154,7 +190,58 @@ mod tests {
             .collect();
         assert!(
             content.contains("Description"),
-            "Expected 'Description' block title in rendered output, got: {:?}",
+            "Expected 'Description' in block title, got: {:?}",
+            content
+        );
+    }
+
+    #[test]
+    fn issue_detail_shows_loading_when_comments_none() {
+        let backend = TestBackend::new(60, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let issue = make_issue();
+        terminal
+            .draw(|frame| render(frame, frame.area(), &issue, 0, None))
+            .unwrap();
+        let content: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(
+            content.contains("loading comments"),
+            "Expected loading indicator, got: {:?}",
+            content
+        );
+    }
+
+    #[test]
+    fn issue_detail_shows_comment_content() {
+        use crate::api::models::Comment;
+        let backend = TestBackend::new(60, 25);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let issue = make_issue();
+        let comments = vec![Comment {
+            id: 1,
+            content: Some("Great bug report".to_string()),
+            created_user: Some(crate::api::models::User { id: 10, name: "Alice".to_string() }),
+            created: "2026-03-31T12:00:00Z".to_string(),
+        }];
+        terminal
+            .draw(|frame| render(frame, frame.area(), &issue, 0, Some(&comments)))
+            .unwrap();
+        let content: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(
+            content.contains("Great bug report"),
+            "Expected comment content, got: {:?}",
             content
         );
     }
@@ -165,7 +252,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let issue = make_issue();
         terminal
-            .draw(|frame| render(frame, frame.area(), &issue, 0))
+            .draw(|frame| render(frame, frame.area(), &issue, 0, None))
             .unwrap();
         let first_symbol = terminal.backend().buffer().content()[0].symbol().to_string();
         assert_eq!(

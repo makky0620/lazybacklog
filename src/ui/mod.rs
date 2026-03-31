@@ -35,7 +35,13 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
     if state.screen == Screen::IssueDetail {
         if let Some(issue) = &state.detail_issue {
-            issue_detail::render(frame, area, issue, state.detail_scroll_offset);
+            issue_detail::render(
+                frame,
+                area,
+                issue,
+                state.detail_scroll_offset,
+                state.detail_comments.as_deref(),
+            );
         }
         render_status_message(frame, area, state);
         return;
