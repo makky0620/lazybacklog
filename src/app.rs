@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::api::models::{Issue, IssueStatus, Project, User};
+use crate::api::models::{Comment, Issue, IssueStatus, Project, User};
 use crate::config::Config;
 use crate::event::AppEvent;
 
@@ -36,6 +36,7 @@ pub struct AppState {
     pub spaces: HashMap<String, SpaceState>,
     pub selected_issue_idx: usize,
     pub detail_issue: Option<Issue>,
+    pub detail_comments: Option<Vec<Comment>>,
     pub filter_assignee_id: Option<i64>,
     pub filter_cursor_idx: usize,
     pub project_cursor_idx: usize,
@@ -69,6 +70,7 @@ impl AppState {
             spaces,
             selected_issue_idx: 0,
             detail_issue: None,
+            detail_comments: None,
             filter_assignee_id: None,
             filter_cursor_idx: 0,
             project_cursor_idx: 0,
@@ -162,6 +164,7 @@ impl AppState {
         self.clear_search();
         self.selected_issue_idx = 0;
         self.detail_issue = None;
+        self.detail_comments = None;
         self.detail_scroll_offset = 0;
         self.project_cursor_idx = 0;
         self.filter_assignee_id = None;
@@ -254,7 +257,13 @@ impl AppState {
                 self.clear_search();
                 self.detail_issue = Some(issue);
                 self.detail_scroll_offset = 0;
+                self.detail_comments = None;
                 self.screen = Screen::IssueDetail;
+            }
+            AppEvent::CommentsLoaded { issue_key, comments } => {
+                if self.detail_issue.as_ref().map(|i| &i.issue_key) == Some(&issue_key) {
+                    self.detail_comments = Some(comments);
+                }
             }
             AppEvent::SpaceUsersLoaded { space, users } => {
                 if let Some(state) = self.spaces.get_mut(&space) {
@@ -1010,5 +1019,47 @@ mod tests {
         assert!(!state.search_active);
         assert!(state.search_query.is_empty());
         assert_eq!(state.screen, Screen::ProjectSelect);
+    }
+
+    #[test]
+    fn test_comments_loaded_sets_detail_comments() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.detail_issue = Some(make_issue("PROJ-1"));
+        state.handle_event(AppEvent::CommentsLoaded {
+            issue_key: "PROJ-1".to_string(),
+            comments: vec![],
+        });
+        assert!(state.detail_comments.is_some());
+    }
+
+    #[test]
+    fn test_comments_loaded_wrong_key_ignored() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.detail_issue = Some(make_issue("PROJ-1"));
+        state.handle_event(AppEvent::CommentsLoaded {
+            issue_key: "PROJ-99".to_string(),
+            comments: vec![],
+        });
+        assert!(state.detail_comments.is_none());
+    }
+
+    #[test]
+    fn test_issue_detail_loaded_resets_comments() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.detail_comments = Some(vec![]);
+        state.handle_event(AppEvent::IssueDetailLoaded(make_issue("PROJ-1")));
+        assert!(state.detail_comments.is_none());
+    }
+
+    #[test]
+    fn test_select_space_resets_comments() {
+        let config = make_config("space1", &["space1"]);
+        let mut state = AppState::new(config, false);
+        state.detail_comments = Some(vec![]);
+        state.select_space(0);
+        assert!(state.detail_comments.is_none());
     }
 }

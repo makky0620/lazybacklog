@@ -1,4 +1,4 @@
-use crate::api::models::{Issue, IssueStatus, Project, User};
+use crate::api::models::{Comment, Issue, IssueStatus, Project, User};
 use crossterm::event::KeyEvent;
 
 pub enum AppEvent {
@@ -8,6 +8,8 @@ pub enum AppEvent {
     IssuesLoaded { space: String, issues: Vec<Issue> },
     /// Single issue detail fetched
     IssueDetailLoaded(Issue),
+    /// Comments for a single issue fetched
+    CommentsLoaded { issue_key: String, comments: Vec<Comment> },
     /// All users for a space fetched and deduplicated by user.id
     SpaceUsersLoaded { space: String, users: Vec<User> },
     /// Projects for a space fetched
