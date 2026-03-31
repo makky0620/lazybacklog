@@ -9,7 +9,10 @@ pub enum AppEvent {
     /// Single issue detail fetched
     IssueDetailLoaded(Issue),
     /// Comments for a single issue fetched
-    CommentsLoaded { issue_key: String, comments: Vec<Comment> },
+    CommentsLoaded {
+        issue_key: String,
+        comments: Vec<Comment>,
+    },
     /// All users for a space fetched and deduplicated by user.id
     SpaceUsersLoaded { space: String, users: Vec<User> },
     /// Projects for a space fetched

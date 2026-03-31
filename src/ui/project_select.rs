@@ -43,8 +43,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
     let space_state = state.current_space_state();
 
     if space_state.loading_projects {
-        let loading =
-            Paragraph::new("Loading projects...").style(Style::default().fg(Color::Gray));
+        let loading = Paragraph::new("Loading projects...").style(Style::default().fg(Color::Gray));
         frame.render_widget(loading, inner);
         return;
     }
@@ -52,8 +51,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &AppState) {
     let projects = match &space_state.projects {
         Some(p) if !p.is_empty() => p,
         _ => {
-            let msg =
-                Paragraph::new("No projects found.").style(Style::default().fg(Color::Gray));
+            let msg = Paragraph::new("No projects found.").style(Style::default().fg(Color::Gray));
             frame.render_widget(msg, inner);
             return;
         }
@@ -118,11 +116,7 @@ mod tests {
             .unwrap();
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         assert!(
             content.contains("Projects"),

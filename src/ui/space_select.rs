@@ -102,11 +102,7 @@ mod tests {
             .unwrap();
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         assert!(
             content.contains("Spaces"),

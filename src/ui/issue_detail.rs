@@ -7,7 +7,13 @@ use ratatui::{
     Frame,
 };
 
-pub fn render(frame: &mut Frame, area: Rect, issue: &Issue, scroll_offset: u16, comments: Option<&[Comment]>) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    issue: &Issue,
+    scroll_offset: u16,
+    comments: Option<&[Comment]>,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -144,7 +150,10 @@ mod tests {
             summary: "Fix login bug".to_string(),
             description: Some("Login fails when entering email.".to_string()),
             assignee: None,
-            status: IssueStatus { id: 1, name: "Open".to_string() },
+            status: IssueStatus {
+                id: 1,
+                name: "Open".to_string(),
+            },
             priority: None,
             issue_type: None,
             due_date: None,
@@ -219,14 +228,16 @@ mod tests {
 
     #[test]
     fn issue_detail_shows_comment_content() {
-        use crate::api::models::Comment;
         let backend = TestBackend::new(60, 25);
         let mut terminal = Terminal::new(backend).unwrap();
         let issue = make_issue();
         let comments = vec![Comment {
             id: 1,
             content: Some("Great bug report".to_string()),
-            created_user: Some(crate::api::models::User { id: 10, name: "Alice".to_string() }),
+            created_user: Some(crate::api::models::User {
+                id: 10,
+                name: "Alice".to_string(),
+            }),
             created: "2026-03-31T12:00:00Z".to_string(),
         }];
         terminal
@@ -254,7 +265,9 @@ mod tests {
         terminal
             .draw(|frame| render(frame, frame.area(), &issue, 0, None))
             .unwrap();
-        let first_symbol = terminal.backend().buffer().content()[0].symbol().to_string();
+        let first_symbol = terminal.backend().buffer().content()[0]
+            .symbol()
+            .to_string();
         assert_eq!(
             first_symbol, "┌",
             "Expected border char at top-left (no title bar), got: {:?}",

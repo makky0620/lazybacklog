@@ -260,7 +260,10 @@ impl AppState {
                 self.detail_comments = None;
                 self.screen = Screen::IssueDetail;
             }
-            AppEvent::CommentsLoaded { issue_key, comments } => {
+            AppEvent::CommentsLoaded {
+                issue_key,
+                comments,
+            } => {
                 if self.detail_issue.as_ref().map(|i| &i.issue_key) == Some(&issue_key) {
                     self.detail_comments = Some(comments);
                 }

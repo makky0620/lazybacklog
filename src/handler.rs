@@ -211,8 +211,7 @@ pub fn handle_detail_key(key: KeyEvent, state: &mut AppState) {
                 #[cfg(not(test))]
                 let _ = open::that(format!(
                     "https://{}/view/{}",
-                    state.config.spaces[state.current_space_idx].host,
-                    _issue.issue_key
+                    state.config.spaces[state.current_space_idx].host, _issue.issue_key
                 ));
             }
         }
@@ -839,7 +838,10 @@ mod tests {
             summary: "test".to_string(),
             description: None,
             assignee: None,
-            status: IssueStatus { id: 1, name: "Open".to_string() },
+            status: IssueStatus {
+                id: 1,
+                name: "Open".to_string(),
+            },
             priority: None,
             issue_type: None,
             due_date: None,

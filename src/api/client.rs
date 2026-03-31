@@ -81,7 +81,10 @@ impl BacklogClient {
     pub async fn fetch_comments(&self, issue_id_or_key: &str) -> Result<Vec<Comment>> {
         let resp = self
             .http
-            .get(format!("{}/issues/{}/comments", self.base_url, issue_id_or_key))
+            .get(format!(
+                "{}/issues/{}/comments",
+                self.base_url, issue_id_or_key
+            ))
             .query(&[("apiKey", &self.api_key)])
             .send()
             .await
